@@ -22,6 +22,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [signupEnabled, setSignupEnabled] = useState(true);
 
   useEffect(() => {
     if (!authLoading && user) router.replace("/dashboard");

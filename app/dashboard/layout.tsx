@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  BarChart3, Building2, CreditCard, Goal, Landmark, LayoutDashboard,
+  BarChart3, Building2, CalendarDays, CreditCard, Goal, Landmark, LayoutDashboard,
   LogOut, Menu, ReceiptText, ShieldCheck, UserRound, X, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -16,6 +16,7 @@ type Item = { label:string; href:string; icon:LucideIcon };
 const personal: Item[] = [
   { label:"Visão Geral", href:"/dashboard", icon:LayoutDashboard },
   { label:"Lançamentos", href:"/dashboard/lancamentos", icon:ReceiptText },
+  { label:"Calendário", href:"/dashboard/calendario", icon:CalendarDays },
   { label:"Metas", href:"/dashboard/metas", icon:Goal },
   { label:"Cartões", href:"/dashboard/cartoes", icon:CreditCard },
 ];
@@ -23,6 +24,7 @@ const personal: Item[] = [
 const institutional: Item[] = [
   { label:"Fluxo de Caixa", href:"/dashboard", icon:BarChart3 },
   { label:"Lançamentos", href:"/dashboard/lancamentos", icon:ReceiptText },
+  { label:"Calendário", href:"/dashboard/calendario", icon:CalendarDays },
   { label:"Centros de Custo", href:"/dashboard/centros-de-custo", icon:Building2 },
   { label:"Permissões", href:"/dashboard/permissoes", icon:ShieldCheck },
 ];
@@ -99,7 +101,8 @@ export default function DashboardLayout({ children }:{ children:React.ReactNode 
           })}
         </nav>
 
-        <div className="p-4">
+        <div className="space-y-2 p-4">
+          {profile?.system_role === "SUPER_ADMIN" && <Link href="/admin" className="flex w-full items-center gap-3 rounded-xl bg-violet-500/15 px-3 py-3 text-sm font-semibold text-violet-300 hover:bg-violet-500/25"><ShieldCheck className="size-5"/>Painel administrativo</Link>}
           <button type="button" onClick={logout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-300">
             <LogOut className="size-5" /> Sair
           </button>

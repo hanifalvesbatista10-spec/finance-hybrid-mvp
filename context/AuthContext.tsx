@@ -22,6 +22,8 @@ export interface Profile {
   id: string;
   full_name: string;
   role: ProfileRole;
+  system_role: "USER" | "SUPER_ADMIN";
+  status: "ACTIVE" | "SUSPENDED";
   created_at?: string;
   updated_at?: string;
 }
@@ -61,7 +63,7 @@ async function getProfile(
 ): Promise<Profile | null> {
   const { data, error } = await client
     .from("profiles")
-    .select("id, full_name, role, created_at, updated_at")
+    .select("id, full_name, role, system_role, status, created_at, updated_at")
     .eq("id", userId)
     .maybeSingle();
 

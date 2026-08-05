@@ -76,3 +76,8 @@ Este MVP usa `@supabase/supabase-js` no cliente conforme solicitado. Para uma
 evolução com autenticação SSR protegendo rotas antes da renderização, adote
 `@supabase/ssr`, cookies e Proxy/Middleware. A RLS continua sendo a barreira
 obrigatória de segurança no banco.
+
+
+## V4
+
+Execute `supabase_schema_v4.sql`. Novas rotas: `/dashboard/recorrencias` e `/dashboard/relatorios`.

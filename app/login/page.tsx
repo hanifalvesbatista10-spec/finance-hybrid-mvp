@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Building2, Landmark, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,11 @@ type Mode = "login" | "register";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>(searchParams.get("mode") === "register" ? "register" : "login");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<ProfileRole>("PERSONAL");
+  const [role, setRole] = useState<ProfileRole>(searchParams.get("plan") === "INSTITUTIONAL" ? "INSTITUTIONAL" : "PERSONAL");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);

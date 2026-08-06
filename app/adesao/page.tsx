@@ -1,15 +1,14 @@
+"use client";
+
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowRight, Building2, Check, Landmark, LockKeyhole, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default async function AdesaoPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ plano?: string }>;
-}) {
-  const params = await searchParams;
-  const plan = params.plano === "INSTITUTIONAL" ? "INSTITUTIONAL" : "PERSONAL";
+export default function AdesaoPage() {
+  const params = useSearchParams();
+  const plan = params.get("plano") === "INSTITUTIONAL" ? "INSTITUTIONAL" : "PERSONAL";
   const business = plan === "INSTITUTIONAL";
 
   return (

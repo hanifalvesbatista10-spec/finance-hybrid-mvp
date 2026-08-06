@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, UserPlus, Users, UserCheck, UserX, Trash2, Search, Settings2 } from "lucide-react";
+import { ExternalLink, Link2, Save, ShieldCheck, UserPlus, Users, UserCheck, UserX, Trash2, Search, Settings2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,21 +11,151 @@ import { Select } from "@/components/ui/select";
 import { StatCard } from "@/components/finance/StatCard";
 
 export default function AdminPage(){
- const router=useRouter(); const {profile,session,loading}=useAuth(); const [users,setUsers]=useState<any[]>([]); const [query,setQuery]=useState(''); const [open,setOpen]=useState(false); const [error,setError]=useState(''); const [settings,setSettings]=useState({public_signup_enabled:true,signup_mode:'PUBLIC'}); const [form,setForm]=useState({full_name:'',email:'',password:'',role:'PERSONAL',system_role:'USER'});
+ const router=useRouter(); const {profile,session,loading}=useAuth(); const [users,setUsers]=useState<any[]>([]); const [query,setQuery]=useState(''); const [open,setOpen]=useState(false); const [error,setError]=useState(''); const [settings,setSettings]=useState({
+  public_signup_enabled:true,
+  signup_mode:'PUBLIC',
+  personal_checkout_url:'',
+  business_checkout_url:'',
+  personal_checkout_enabled:true,
+  business_checkout_enabled:true,
+});
+ const [settingsDraft,setSettingsDraft]=useState(settings);
+ const [savingSettings,setSavingSettings]=useState(false);
+ const [settingsMessage,setSettingsMessage]=useState(''); const [form,setForm]=useState({full_name:'',email:'',password:'',role:'PERSONAL',system_role:'USER'});
  const headers=useMemo(()=>({Authorization:`Bearer ${session?.access_token??''}`,'Content-Type':'application/json'}),[session]);
- const load=useCallback(async()=>{if(!session)return; const [u,s]=await Promise.all([fetch('/api/admin/users',{headers}),fetch('/api/admin/settings')]); const uj=await u.json(); const sj=await s.json(); if(!u.ok)setError(uj.error);else setUsers(uj.users); if(s.ok)setSettings(sj);},[headers,session]);
+ const load=useCallback(async()=>{if(!session)return; const [u,s]=await Promise.all([fetch('/api/admin/users',{headers}),fetch('/api/admin/settings')]); const uj=await u.json(); const sj=await s.json(); if(!u.ok)setError(uj.error);else setUsers(uj.users); if(s.ok){setSettings(sj);setSettingsDraft(sj);}},[headers,session]);
  useEffect(()=>{if(!loading&&profile?.system_role!=='SUPER_ADMIN')router.replace('/dashboard'); else void load();},[load,loading,profile?.system_role,router]);
  const filtered=users.filter(u=>`${u.full_name??''} ${u.email??''}`.toLowerCase().includes(query.toLowerCase()));
  async function create(e:FormEvent){e.preventDefault();setError('');const r=await fetch('/api/admin/users',{method:'POST',headers,body:JSON.stringify(form)});const j=await r.json();if(!r.ok)setError(j.error);else{setOpen(false);setForm({full_name:'',email:'',password:'',role:'PERSONAL',system_role:'USER'});await load();}}
  async function action(id:string,action:string){if(action==='DELETE'&&!confirm('Excluir definitivamente este usuário e seus dados?'))return; const r=await fetch(action==='DELETE'?`/api/admin/users?id=${id}`:'/api/admin/users',{method:action==='DELETE'?'DELETE':'PATCH',headers,body:action==='DELETE'?undefined:JSON.stringify({id,action})});const j=await r.json();if(!r.ok)setError(j.error);else await load();}
- async function updateSettings(next:any){setSettings(next);const r=await fetch('/api/admin/settings',{method:'PATCH',headers,body:JSON.stringify(next)});const j=await r.json();if(!r.ok)setError(j.error);}
+ async function saveSettings(next:any=settingsDraft){
+  setSavingSettings(true);
+  setError('');
+  setSettingsMessage('');
+  const r=await fetch('/api/admin/settings',{
+    method:'PATCH',
+    headers,
+    body:JSON.stringify(next),
+  });
+  const j=await r.json();
+  if(!r.ok){
+    setError(j.error);
+  }else{
+    setSettings(j);
+    setSettingsDraft(j);
+    setSettingsMessage('Configurações comerciais atualizadas com sucesso.');
+  }
+  setSavingSettings(false);
+}
  if(loading||profile?.system_role!=='SUPER_ADMIN')return <div className="grid min-h-screen place-items-center text-sm text-slate-500">Validando acesso administrativo...</div>;
  return <div className="min-h-screen bg-[#f5f7fb] p-4 md:p-8 lg:p-10"><div className="mx-auto max-w-[1500px] space-y-7">
   <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><p className="text-sm font-black text-violet-700">SUPER ADMIN</p><h1 className="mt-2 text-3xl font-black text-slate-950 md:text-4xl">Controle da plataforma</h1><p className="mt-2 text-sm text-slate-500">Usuários, acessos e regras comerciais em um único painel.</p></div><div className="flex gap-2"><Button variant="outline" onClick={()=>router.push('/dashboard')}>Voltar ao sistema</Button><Button onClick={()=>setOpen(v=>!v)}><UserPlus className="size-4"/>Novo usuário</Button></div></div>
   {error&&<div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
   <div className="grid gap-4 md:grid-cols-3"><StatCard title="Usuários cadastrados" value={String(users.length)} helper="Total na plataforma" icon={Users}/><StatCard title="Contas ativas" value={String(users.filter(u=>u.status==='ACTIVE'&&!u.banned_until).length)} helper="Com acesso liberado" icon={UserCheck} tone="emerald"/><StatCard title="Contas suspensas" value={String(users.filter(u=>u.status==='SUSPENDED'||u.banned_until).length)} helper="Acesso bloqueado" icon={UserX} tone="rose"/></div>
-  <Card className="border-0 shadow-[0_12px_35px_rgba(15,23,42,.07)]"><CardHeader><CardTitle className="flex items-center gap-2"><Settings2 className="size-5 text-violet-600"/>Controle de cadastro</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-2"><label className="flex items-center justify-between rounded-2xl border border-slate-200 p-5"><div><p className="font-black text-slate-900">Cadastro público</p><p className="mt-1 text-sm text-slate-500">Exibe ou oculta o cadastro na tela de login.</p></div><button type="button" onClick={()=>updateSettings({...settings,public_signup_enabled:!settings.public_signup_enabled})} className={`relative h-7 w-12 rounded-full transition ${settings.public_signup_enabled?'bg-emerald-500':'bg-slate-300'}`}><span className={`absolute top-1 size-5 rounded-full bg-white transition ${settings.public_signup_enabled?'left-6':'left-1'}`}/></button></label><label><span className="mb-2 block text-xs font-black uppercase text-slate-500">Modo de entrada</span><Select value={settings.signup_mode} onChange={e=>updateSettings({...settings,signup_mode:e.target.value,public_signup_enabled:e.target.value==='PUBLIC'})}><option value="PUBLIC">Cadastro público</option><option value="INVITE_ONLY">Somente convite/admin</option><option value="CLOSED">Fechado</option></Select></label></CardContent></Card>
+  <Card className="border-0 shadow-[0_12px_35px_rgba(15,23,42,.07)]">
+   <CardHeader>
+    <CardTitle className="flex items-center gap-2"><Settings2 className="size-5 text-violet-600"/>Controle de cadastro</CardTitle>
+   </CardHeader>
+   <CardContent className="grid gap-4 md:grid-cols-2">
+    <label className="flex items-center justify-between rounded-2xl border border-slate-200 p-5">
+     <div><p className="font-black text-slate-900">Cadastro público</p><p className="mt-1 text-sm text-slate-500">Exibe ou oculta o cadastro na tela de login.</p></div>
+     <button type="button" onClick={()=>setSettingsDraft({...settingsDraft,public_signup_enabled:!settingsDraft.public_signup_enabled})} className={`relative h-7 w-12 rounded-full transition ${settingsDraft.public_signup_enabled?'bg-emerald-500':'bg-slate-300'}`}>
+      <span className={`absolute top-1 size-5 rounded-full bg-white transition ${settingsDraft.public_signup_enabled?'left-6':'left-1'}`}/>
+     </button>
+    </label>
+    <label>
+     <span className="mb-2 block text-xs font-black uppercase text-slate-500">Modo de entrada</span>
+     <Select value={settingsDraft.signup_mode} onChange={e=>setSettingsDraft({...settingsDraft,signup_mode:e.target.value,public_signup_enabled:e.target.value==='PUBLIC'})}>
+      <option value="PUBLIC">Cadastro público</option>
+      <option value="INVITE_ONLY">Somente convite/admin</option>
+      <option value="CLOSED">Fechado</option>
+     </Select>
+    </label>
+   </CardContent>
+  </Card>
+
+  <Card className="border-0 shadow-[0_12px_35px_rgba(15,23,42,.07)]">
+   <CardHeader className="gap-3 border-b border-slate-100 md:flex-row md:items-center md:justify-between">
+    <div>
+     <CardTitle className="flex items-center gap-2"><Link2 className="size-5 text-violet-600"/>Checkouts comerciais</CardTitle>
+     <p className="mt-2 text-sm text-slate-500">Troque os links e pause as vendas diretamente pelo painel, sem alterar o GitHub.</p>
+    </div>
+    <Button onClick={()=>saveSettings()} disabled={savingSettings}>
+     <Save className="size-4"/>{savingSettings?'Salvando...':'Salvar configurações'}
+    </Button>
+   </CardHeader>
+   <CardContent className="space-y-5 p-6">
+    {settingsMessage&&<div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{settingsMessage}</div>}
+    <CheckoutSetting
+     title="Finance Hybrid Personal"
+     description="Link usado no botão de compra do plano pessoal."
+     value={settingsDraft.personal_checkout_url||''}
+     enabled={settingsDraft.personal_checkout_enabled}
+     onValueChange={(value:string)=>setSettingsDraft({...settingsDraft,personal_checkout_url:value})}
+     onEnabledChange={(value:boolean)=>setSettingsDraft({...settingsDraft,personal_checkout_enabled:value})}
+    />
+    <CheckoutSetting
+     title="Finance Hybrid Business"
+     description="Link usado no botão de compra do plano empresarial."
+     value={settingsDraft.business_checkout_url||''}
+     enabled={settingsDraft.business_checkout_enabled}
+     onValueChange={(value:string)=>setSettingsDraft({...settingsDraft,business_checkout_url:value})}
+     onEnabledChange={(value:boolean)=>setSettingsDraft({...settingsDraft,business_checkout_enabled:value})}
+    />
+   </CardContent>
+  </Card>
   {open&&<Card className="border-violet-100 bg-violet-50/50"><CardHeader><CardTitle>Criar usuário</CardTitle></CardHeader><CardContent><form onSubmit={create} className="grid gap-4 md:grid-cols-2 xl:grid-cols-5"><Input required placeholder="Nome completo" value={form.full_name} onChange={e=>setForm({...form,full_name:e.target.value})}/><Input required type="email" placeholder="E-mail" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/><Input required minLength={6} placeholder="Senha inicial" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/><Select value={form.role} onChange={e=>setForm({...form,role:e.target.value})}><option value="PERSONAL">Pessoal</option><option value="INSTITUTIONAL">Institucional</option></Select><Button type="submit">Criar e liberar</Button></form></CardContent></Card>}
   <Card className="border-0 shadow-[0_12px_35px_rgba(15,23,42,.07)]"><CardHeader className="gap-4 md:flex-row md:items-center md:justify-between"><div><CardTitle>Usuários</CardTitle><p className="mt-2 text-sm text-slate-500">Gerencie acesso e tipo de conta.</p></div><div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3"><Search className="size-4 text-slate-400"/><input className="h-10 bg-transparent text-sm outline-none" placeholder="Buscar usuário..." value={query} onChange={e=>setQuery(e.target.value)}/></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[900px]"><thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="pb-3">Usuário</th><th className="pb-3">Perfil</th><th className="pb-3">Nível</th><th className="pb-3">Status</th><th className="pb-3">Último acesso</th><th className="pb-3 text-right">Ações</th></tr></thead><tbody className="divide-y divide-slate-100">{filtered.map(u=><tr key={u.id}><td className="py-4"><p className="text-sm font-black text-slate-900">{u.full_name||'Sem nome'}</p><p className="text-xs text-slate-400">{u.email}</p></td><td className="py-4 text-sm font-bold text-slate-600">{u.role}</td><td className="py-4 text-sm font-bold text-violet-700">{u.system_role}</td><td className="py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-black ${(u.status==='SUSPENDED'||u.banned_until)?'bg-rose-50 text-rose-700':'bg-emerald-50 text-emerald-700'}`}>{(u.status==='SUSPENDED'||u.banned_until)?'Suspenso':'Ativo'}</span></td><td className="py-4 text-sm text-slate-500">{u.last_sign_in_at?new Date(u.last_sign_in_at).toLocaleString('pt-BR'):'Nunca'}</td><td className="py-4"><div className="flex justify-end gap-2">{u.status==='SUSPENDED'||u.banned_until?<Button size="sm" variant="outline" onClick={()=>action(u.id,'ACTIVATE')}>Ativar</Button>:<Button size="sm" variant="outline" onClick={()=>action(u.id,'SUSPEND')}>Suspender</Button>}<button type="button" onClick={()=>action(u.id,'DELETE')} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-700"><Trash2 className="size-4"/></button></div></td></tr>)}</tbody></table></div></CardContent></Card>
  </div></div>;
+}
+
+
+function CheckoutSetting({
+ title,
+ description,
+ value,
+ enabled,
+ onValueChange,
+ onEnabledChange,
+}:{
+ title:string;
+ description:string;
+ value:string;
+ enabled:boolean;
+ onValueChange:(value:string)=>void;
+ onEnabledChange:(value:boolean)=>void;
+}){
+ return <div className={`rounded-2xl border p-5 ${enabled?'border-slate-200 bg-white':'border-slate-200 bg-slate-50'}`}>
+  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+   <div>
+    <div className="flex items-center gap-3">
+     <p className="font-black text-slate-900">{title}</p>
+     <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${enabled?'bg-emerald-50 text-emerald-700':'bg-slate-200 text-slate-600'}`}>
+      {enabled?'Venda ativa':'Venda pausada'}
+     </span>
+    </div>
+    <p className="mt-1 text-sm text-slate-500">{description}</p>
+   </div>
+   <button type="button" onClick={()=>onEnabledChange(!enabled)} className={`relative h-7 w-12 shrink-0 rounded-full transition ${enabled?'bg-emerald-500':'bg-slate-300'}`}>
+    <span className={`absolute top-1 size-5 rounded-full bg-white transition ${enabled?'left-6':'left-1'}`}/>
+   </button>
+  </div>
+  <div className="mt-5 flex flex-col gap-3 md:flex-row">
+   <Input
+    type="url"
+    value={value}
+    onChange={e=>onValueChange(e.target.value)}
+    placeholder="https://..."
+    className="flex-1"
+   />
+   <Button
+    type="button"
+    variant="outline"
+    disabled={!value}
+    onClick={()=>window.open(value,'_blank','noopener,noreferrer')}
+   >
+    <ExternalLink className="size-4"/>Testar link
+   </Button>
+  </div>
+ </div>;
 }

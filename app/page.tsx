@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
@@ -25,7 +26,44 @@ const recursos = [
   ["Dados protegidos", "Cada usuário acessa apenas as próprias informações.", ShieldCheck],
 ] as const;
 
+type CheckoutSettings = {
+  personal_checkout_url: string | null;
+  business_checkout_url: string | null;
+  personal_checkout_enabled: boolean;
+  business_checkout_enabled: boolean;
+};
+
+const fallbackSettings: CheckoutSettings = {
+  personal_checkout_url: "https://invoice.infinitepay.io/plans/aphhardcore/ZuBAmrcZfy",
+  business_checkout_url: "https://invoice.infinitepay.io/plans/aphhardcore/JhBKukTIXw",
+  personal_checkout_enabled: true,
+  business_checkout_enabled: true,
+};
+
 export default function HomePage() {
+  const [checkoutSettings, setCheckoutSettings] =
+    useState<CheckoutSettings>(fallbackSettings);
+
+  useEffect(() => {
+    fetch("/api/admin/settings", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (data) {
+          setCheckoutSettings({
+            personal_checkout_url:
+              data.personal_checkout_url || fallbackSettings.personal_checkout_url,
+            business_checkout_url:
+              data.business_checkout_url || fallbackSettings.business_checkout_url,
+            personal_checkout_enabled:
+              data.personal_checkout_enabled !== false,
+            business_checkout_enabled:
+              data.business_checkout_enabled !== false,
+          });
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
   return (
     <main className="min-h-screen bg-white text-slate-950">
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
@@ -120,8 +158,8 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4 md:px-8">
           <div className="text-center"><p className="text-sm font-black uppercase tracking-[.18em] text-indigo-600">Escolha sua experiência</p><h2 className="mt-3 text-3xl font-black sm:text-4xl">Um plano para cada realidade</h2><p className="mt-4 text-slate-500">Após a adesão, você será direcionado para criar sua conta.</p></div>
           <div className="mx-auto mt-12 grid max-w-5xl gap-6 lg:grid-cols-2">
-            <Plan title="Finance Hybrid Personal" icon={UserRound} href="/adesao?plano=PERSONAL" items={["Visão mensal completa","Receitas e despesas fixas","Metas e cartões","Relatórios e calendário"]} />
-            <Plan title="Finance Hybrid Business" icon={Building2} href="/adesao?plano=INSTITUTIONAL" items={["Fluxo de caixa","Centros de custo","Permissões internas","Relatórios empresariais"]} dark />
+            <Plan title="Finance Hybrid Personal" icon={UserRound} href={checkoutSettings.personal_checkout_url || "#"} enabled={checkoutSettings.personal_checkout_enabled} buttonLabel="Começar minha gestão pessoal" items={["Visão mensal completa","Receitas e despesas fixas","Metas e cartões","Relatórios e calendário"]} />
+            <Plan title="Finance Hybrid Business" icon={Building2} href={checkoutSettings.business_checkout_url || "#"} enabled={checkoutSettings.business_checkout_enabled} buttonLabel="Começar minha gestão empresarial" items={["Fluxo de caixa","Centros de custo","Permissões internas","Relatórios empresariais"]} dark />
           </div>
         </div>
       </section>
@@ -144,7 +182,23 @@ export default function HomePage() {
   );
 }
 
-function Plan({title, icon: Icon, href, items, dark=false}: {title:string; icon:typeof UserRound; href:string; items:string[]; dark?:boolean}) {
+function Plan({
+  title,
+  icon: Icon,
+  href,
+  items,
+  buttonLabel,
+  enabled,
+  dark = false,
+}: {
+  title: string;
+  icon: typeof UserRound;
+  href: string;
+  items: string[];
+  buttonLabel: string;
+  enabled: boolean;
+  dark?: boolean;
+}) {
   return (
     <article className={`rounded-[2rem] border p-8 ${dark ? "border-indigo-600 bg-[#0b1020] text-white" : "border-slate-200 bg-white"}`}>
       <span className={`grid size-12 place-items-center rounded-2xl ${dark ? "bg-white/10 text-indigo-300" : "bg-indigo-50 text-indigo-700"}`}><Icon className="size-6" /></span>
@@ -152,7 +206,26 @@ function Plan({title, icon: Icon, href, items, dark=false}: {title:string; icon:
       <div className="mt-7 space-y-3">
         {items.map((item) => <div key={item} className="flex items-center gap-3 text-sm"><Check className="size-4 text-emerald-500" />{item}</div>)}
       </div>
-      <Link href={href} className="mt-8 block"><Button className="h-12 w-full">Quero aderir <ArrowRight className="size-4" /></Button></Link>
+
+      {enabled && href !== "#" ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" className="mt-8 block">
+          <Button className={`h-14 w-full rounded-2xl text-base shadow-lg transition hover:-translate-y-0.5 ${dark ? "bg-indigo-500 shadow-indigo-950/40 hover:bg-indigo-400" : "bg-slate-950 shadow-slate-300 hover:bg-slate-800"}`}>
+            {buttonLabel}
+            <ArrowRight className="size-5" />
+          </Button>
+        </a>
+      ) : (
+        <div className="mt-8">
+          <Button disabled className="h-14 w-full rounded-2xl text-base">
+            Inscrições temporariamente pausadas
+          </Button>
+        </div>
+      )}
+
+      <div className={`mt-3 flex items-center justify-center gap-2 text-xs ${dark ? "text-slate-400" : "text-slate-500"}`}>
+        <ShieldCheck className="size-4 text-emerald-500" />
+        Pagamento seguro pela InfinitePay
+      </div>
     </article>
   );
 }

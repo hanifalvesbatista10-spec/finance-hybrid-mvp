@@ -9,7 +9,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,9 @@ export function AlertCenter() {
   const [preferences, setPreferences] =
     useState<ReminderPreferences | null>(null);
   const [open, setOpen] = useState(false);
+  const channelNameRef = useRef(
+    `obligation-alerts-${crypto.randomUUID()}`,
+  );
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -57,6 +60,9 @@ export function AlertCenter() {
 
     if (!itemsResult.error) {
       setItems((itemsResult.data ?? []) as Obligation[]);
+    } else {
+      // Mantém o dashboard funcional mesmo antes da migração V5.4.
+      setItems([]);
     }
 
     if (!preferencesResult.error) {
@@ -67,24 +73,31 @@ export function AlertCenter() {
           show_overdue: true,
         },
       );
+    } else {
+      setPreferences({
+        user_id: user.id,
+        default_remind_days: [0, 1, 3],
+        show_overdue: true,
+      });
     }
   }, [supabase, user]);
 
   useEffect(() => {
     void load();
 
-    const channel = supabase
-      .channel("obligation-alerts")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "obligations",
-        },
-        () => void load(),
-      )
-      .subscribe();
+    const channel = supabase.channel(channelNameRef.current);
+
+    channel.on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "obligations",
+      },
+      () => void load(),
+    );
+
+    channel.subscribe();
 
     return () => {
       void supabase.removeChannel(channel);

@@ -46,6 +46,8 @@ export function UpcomingAlertsBanner() {
 
     if (!itemsResult.error) {
       setItems((itemsResult.data ?? []) as Obligation[]);
+    } else {
+      setItems([]);
     }
 
     if (!preferencesResult.error) {
@@ -56,6 +58,12 @@ export function UpcomingAlertsBanner() {
           show_overdue: true,
         },
       );
+    } else {
+      setPreferences({
+        user_id: user.id,
+        default_remind_days: [0, 1, 3],
+        show_overdue: true,
+      });
     }
   }, [supabase, user]);
 

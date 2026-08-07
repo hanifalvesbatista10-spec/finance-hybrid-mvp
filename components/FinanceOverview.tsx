@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { currency, getMonthRange, type Transaction } from "@/lib/finance";
 import { StatCard } from "@/components/finance/StatCard";
 import { TransactionsManager } from "@/components/finance/TransactionsManager";
+import { UpcomingAlertsBanner } from "@/components/finance/UpcomingAlertsBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/finance/EmptyState";
 
@@ -55,6 +56,7 @@ export function FinanceOverview({ institutional }: { institutional: boolean }) {
 
   return (
     <div className="space-y-7">
+      <UpcomingAlertsBanner />
       <section>
         <p className="text-sm font-bold text-indigo-700">
           {institutional ? "GESTÃO INSTITUCIONAL" : "GESTÃO PESSOAL"}

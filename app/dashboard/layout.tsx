@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
+  BellRing,
   Building2,
   CalendarClock,
   CalendarDays,
@@ -23,6 +24,8 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { AlertCenter } from "@/components/finance/AlertCenter";
+import { SubscriptionGate } from "@/components/subscription/SubscriptionGate";
 import { useAuth, type ProfileRole } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +34,7 @@ type Item = { label: string; href: string; icon: LucideIcon };
 const personal: Item[] = [
   { label: "Visão Geral", href: "/dashboard", icon: LayoutDashboard },
   { label: "Lançamentos", href: "/dashboard/lancamentos", icon: ReceiptText },
+  { label: "Contas e Alertas", href: "/dashboard/contas", icon: BellRing },
   { label: "Fixos mensais", href: "/dashboard/recorrencias", icon: CalendarClock },
   { label: "Calendário", href: "/dashboard/calendario", icon: CalendarDays },
   { label: "Relatórios", href: "/dashboard/relatorios", icon: FileText },
@@ -41,6 +45,7 @@ const personal: Item[] = [
 const institutional: Item[] = [
   { label: "Fluxo de Caixa", href: "/dashboard", icon: BarChart3 },
   { label: "Lançamentos", href: "/dashboard/lancamentos", icon: ReceiptText },
+  { label: "Contas e Alertas", href: "/dashboard/contas", icon: BellRing },
   { label: "Fixos mensais", href: "/dashboard/recorrencias", icon: CalendarClock },
   { label: "Calendário", href: "/dashboard/calendario", icon: CalendarDays },
   { label: "Relatórios", href: "/dashboard/relatorios", icon: FileText },
@@ -212,13 +217,17 @@ export default function DashboardLayout({
           >
             <Menu className="size-5" />
           </Button>
-          <span className="ml-3 font-black text-slate-900">
+          <span className="ml-3 flex-1 font-black text-slate-900">
             Finance Hybrid
           </span>
+          <AlertCenter />
         </header>
 
         <main className="mx-auto max-w-[1600px] p-4 md:p-8 lg:p-10">
-          {children}
+          <div className="mb-5 hidden justify-end lg:flex">
+            <AlertCenter />
+          </div>
+          <SubscriptionGate>{children}</SubscriptionGate>
         </main>
       </div>
     </div>

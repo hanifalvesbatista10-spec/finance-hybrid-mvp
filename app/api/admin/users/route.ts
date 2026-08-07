@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
   const ids = listed.users.map((user) => user.id);
 
-  const [profilesResult, subscriptionsResult] = await Promise.all([
+  const [profilesResult, subscriptionsResult, ordersResult] = await Promise.all([
     ids.length
       ? adminSupabase
           .from("profiles")
@@ -43,6 +43,13 @@ export async function GET(request: Request) {
           .from("subscriptions")
           .select("*")
           .in("user_id", ids)
+      : Promise.resolve({ data: [] as any[], error: null }),
+    ids.length
+      ? adminSupabase
+          .from("subscription_orders")
+          .select("user_id,status,amount,order_nsu,created_at,receipt_url")
+          .in("user_id", ids)
+          .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] as any[], error: null }),
   ]);
 
@@ -60,6 +67,13 @@ export async function GET(request: Request) {
     ]),
   );
 
+  const latestOrderMap = new Map();
+  for (const order of ordersResult.data ?? []) {
+    if (!latestOrderMap.has(order.user_id)) {
+      latestOrderMap.set(order.user_id, order);
+    }
+  }
+
   return NextResponse.json({
     users: listed.users.map((user) => ({
       id: user.id,
@@ -69,6 +83,7 @@ export async function GET(request: Request) {
       banned_until: user.banned_until,
       ...profileMap.get(user.id),
       subscription: subscriptionMap.get(user.id) ?? null,
+      latest_order: latestOrderMap.get(user.id) ?? null,
     })),
   });
 }

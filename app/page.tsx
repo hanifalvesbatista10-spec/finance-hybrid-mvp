@@ -100,7 +100,7 @@ export default function HomePage() {
               Organize finanças pessoais ou empresariais, acompanhe cada mês e gere relatórios profissionais.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a href="#planos"><Button className="h-12 bg-indigo-500 px-6 hover:bg-indigo-400">Quero aderir <ArrowRight className="size-4" /></Button></a>
+              <a href="#planos"><Button className="h-12 bg-indigo-500 px-6 hover:bg-indigo-400">Começar minha gestão <ArrowRight className="size-4" /></Button></a>
               <Link href="/login"><Button variant="outline" className="h-12 border-white/20 bg-white/5 px-6 text-white hover:bg-white/10">Já sou cliente</Button></Link>
             </div>
             <div className="mt-8 grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
@@ -158,8 +158,8 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4 md:px-8">
           <div className="text-center"><p className="text-sm font-black uppercase tracking-[.18em] text-indigo-600">Escolha sua experiência</p><h2 className="mt-3 text-3xl font-black sm:text-4xl">Um plano para cada realidade</h2><p className="mt-4 text-slate-500">Após a adesão, você será direcionado para criar sua conta.</p></div>
           <div className="mx-auto mt-12 grid max-w-5xl gap-6 lg:grid-cols-2">
-            <Plan title="Finance Hybrid Personal" icon={UserRound} href={checkoutSettings.personal_checkout_url || "#"} enabled={checkoutSettings.personal_checkout_enabled} buttonLabel="Começar minha gestão pessoal" items={["Visão mensal completa","Receitas e despesas fixas","Metas e cartões","Relatórios e calendário"]} />
-            <Plan title="Finance Hybrid Business" icon={Building2} href={checkoutSettings.business_checkout_url || "#"} enabled={checkoutSettings.business_checkout_enabled} buttonLabel="Começar minha gestão empresarial" items={["Fluxo de caixa","Centros de custo","Permissões internas","Relatórios empresariais"]} dark />
+            <Plan title="Finance Hybrid Personal" icon={UserRound} href="/login?mode=register&plan=PERSONAL" enabled={checkoutSettings.personal_checkout_enabled} buttonLabel="Começar minha gestão pessoal" items={["Visão mensal completa","Receitas e despesas fixas","Metas e cartões","Relatórios e calendário"]} />
+            <Plan title="Finance Hybrid Business" icon={Building2} href="/login?mode=register&plan=INSTITUTIONAL" enabled={checkoutSettings.business_checkout_enabled} buttonLabel="Começar minha gestão empresarial" items={["Fluxo de caixa","Centros de custo","Permissões internas","Relatórios empresariais"]} dark />
           </div>
         </div>
       </section>
@@ -208,12 +208,12 @@ function Plan({
       </div>
 
       {enabled && href !== "#" ? (
-        <a href={href} target="_blank" rel="noopener noreferrer" className="mt-8 block">
+        <Link href={href} className="mt-8 block">
           <Button className={`h-14 w-full rounded-2xl text-base shadow-lg transition hover:-translate-y-0.5 ${dark ? "bg-indigo-500 shadow-indigo-950/40 hover:bg-indigo-400" : "bg-slate-950 shadow-slate-300 hover:bg-slate-800"}`}>
             {buttonLabel}
             <ArrowRight className="size-5" />
           </Button>
-        </a>
+        </Link>
       ) : (
         <div className="mt-8">
           <Button disabled className="h-14 w-full rounded-2xl text-base">

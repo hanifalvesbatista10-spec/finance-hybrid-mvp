@@ -40,12 +40,14 @@ type CheckoutSettings = {
 };
 
 export default function AssinaturaPage() {
-  const { supabase, user, profile, loading, signOut } = useAuth();
+  const { supabase, user, profile, session, loading, signOut } = useAuth();
   const [subscription, setSubscription] =
     useState<Subscription | null>(null);
   const [settings, setSettings] =
     useState<CheckoutSettings | null>(null);
   const [checking, setChecking] = useState(true);
+  const [creatingCheckout, setCreatingCheckout] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
 
   const load = useCallback(async () => {
     if (!user) {
@@ -80,6 +82,37 @@ export default function AssinaturaPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+
+  async function startIntegratedCheckout() {
+    if (!session?.access_token) return;
+
+    setCreatingCheckout(true);
+    setCheckoutError("");
+
+    const response = await fetch(
+      "/api/payments/infinitepay/checkout",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    const json = await response.json();
+
+    if (!response.ok || !json.url) {
+      setCheckoutError(
+        json.error || "Não foi possível abrir o checkout.",
+      );
+      setCreatingCheckout(false);
+      return;
+    }
+
+    window.location.href = json.url;
+  }
 
   const active = subscriptionIsActive(subscription);
 
@@ -250,21 +283,27 @@ export default function AssinaturaPage() {
                     <ArrowRight className="size-4" />
                   </Button>
                 </Link>
-              ) : checkout.enabled && checkout.url ? (
-                <a
-                  href={checkout.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+              ) : checkout.enabled ? (
+                <Button
+                  className="h-12 w-full bg-indigo-500 hover:bg-indigo-400"
+                  onClick={() => void startIntegratedCheckout()}
+                  disabled={creatingCheckout}
                 >
-                  <Button className="h-12 w-full bg-indigo-500 hover:bg-indigo-400">
-                    Renovar assinatura
-                    <ArrowRight className="size-4" />
-                  </Button>
-                </a>
+                  {creatingCheckout
+                    ? "Gerando checkout..."
+                    : "Renovar assinatura"}
+                  <ArrowRight className="size-4" />
+                </Button>
               ) : (
                 <Button disabled className="h-12 w-full">
                   Renovações temporariamente pausadas
                 </Button>
+              )}
+
+              {checkoutError && (
+                <p className="mt-3 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">
+                  {checkoutError}
+                </p>
               )}
 
               {!active && (

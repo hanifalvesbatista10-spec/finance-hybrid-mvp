@@ -65,7 +65,20 @@ export function PaymentReturnClient({
       },
     );
 
-    const json = await response.json();
+    const raw = await response.text();
+    let json: {
+      success?: boolean;
+      pending?: boolean;
+      error?: string;
+    } = {};
+
+    if (raw) {
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        json = {};
+      }
+    }
 
     if (response.ok && json.success) {
       setState("success");

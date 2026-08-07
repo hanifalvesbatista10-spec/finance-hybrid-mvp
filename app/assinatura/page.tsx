@@ -85,33 +85,57 @@ export default function AssinaturaPage() {
 
 
   async function startIntegratedCheckout() {
-    if (!session?.access_token) return;
+    if (!session?.access_token) {
+      setCheckoutError(
+        "Sua sessão expirou. Entre novamente para continuar.",
+      );
+      return;
+    }
 
     setCreatingCheckout(true);
     setCheckoutError("");
 
-    const response = await fetch(
-      "/api/payments/infinitepay/checkout",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
+    try {
+      const response = await fetch(
+        "/api/payments/infinitepay/checkout",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          cache: "no-store",
         },
-      },
-    );
-
-    const json = await response.json();
-
-    if (!response.ok || !json.url) {
-      setCheckoutError(
-        json.error || "Não foi possível abrir o checkout.",
       );
-      setCreatingCheckout(false);
-      return;
-    }
 
-    window.location.href = json.url;
+      const raw = await response.text();
+      let json: { url?: string; error?: string } = {};
+
+      if (raw) {
+        try {
+          json = JSON.parse(raw);
+        } catch {
+          json = {};
+        }
+      }
+
+      if (!response.ok || !json.url) {
+        setCheckoutError(
+          json.error ||
+            `Não foi possível gerar o checkout. Código ${response.status}.`,
+        );
+        return;
+      }
+
+      window.location.assign(json.url);
+    } catch (error) {
+      console.error("Falha ao iniciar checkout:", error);
+      setCheckoutError(
+        "Não foi possível conectar ao checkout. Tente novamente em alguns instantes.",
+      );
+    } finally {
+      setCreatingCheckout(false);
+    }
   }
 
   const active = subscriptionIsActive(subscription);

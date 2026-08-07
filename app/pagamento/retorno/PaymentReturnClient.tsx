@@ -36,6 +36,7 @@ export function PaymentReturnClient({
   const [message, setMessage] = useState(
     "Confirmando seu pagamento...",
   );
+  const [claimToken, setClaimToken] = useState("");
 
   async function confirm() {
     if (!orderNsu || !transactionNsu || !slug) {
@@ -70,6 +71,8 @@ export function PaymentReturnClient({
       success?: boolean;
       pending?: boolean;
       error?: string;
+      needs_registration?: boolean;
+      claim_token?: string;
     } = {};
 
     if (raw) {
@@ -82,9 +85,12 @@ export function PaymentReturnClient({
 
     if (response.ok && json.success) {
       setState("success");
-      setMessage(
-        "Pagamento confirmado. Sua assinatura recebeu mais 30 dias.",
-      );
+      if (json.needs_registration && json.claim_token) {
+        setClaimToken(json.claim_token);
+        setMessage("Pagamento confirmado. Falta apenas criar sua conta para liberar os 30 dias.");
+      } else {
+        setMessage("Pagamento confirmado. Sua assinatura recebeu mais 30 dias.");
+      }
       return;
     }
 
@@ -158,11 +164,15 @@ export function PaymentReturnClient({
 
           <div className="mt-7 space-y-3">
             {success ? (
-              <Link href="/dashboard">
-                <Button className="h-12 w-full">
-                  Acessar meu dashboard
-                </Button>
-              </Link>
+              claimToken ? (
+                <Link href={`/cadastro-pago?token=${encodeURIComponent(claimToken)}`}>
+                  <Button className="h-12 w-full">Criar minha conta</Button>
+                </Link>
+              ) : (
+                <Link href="/dashboard">
+                  <Button className="h-12 w-full">Acessar meu dashboard</Button>
+                </Link>
+              )
             ) : (
               <Button
                 className="h-12 w-full"

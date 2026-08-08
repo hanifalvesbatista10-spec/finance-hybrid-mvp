@@ -52,6 +52,7 @@ type AdminUser = {
   last_sign_in_at?: string;
   banned_until?: string;
   subscription: Subscription | null;
+  medical_product?: { status: string } | null;
 };
 
 type Settings = {
@@ -397,7 +398,7 @@ export default function AdminPage() {
             </div>
 
             <CheckoutSetting
-              title="Finance Hybrid Personal"
+              title="Equity One Pessoal"
               value={settingsDraft.personal_checkout_url || ""}
               enabled={settingsDraft.personal_checkout_enabled}
               onValueChange={(value) =>
@@ -415,7 +416,7 @@ export default function AdminPage() {
             />
 
             <CheckoutSetting
-              title="Finance Hybrid Business"
+              title="Equity One Negócios"
               value={settingsDraft.business_checkout_url || ""}
               enabled={settingsDraft.business_checkout_enabled}
               onValueChange={(value) =>
@@ -704,6 +705,17 @@ function UserSubscriptionCard({
             >
               Definir vencimento
             </Button>
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div><p className="text-xs font-black uppercase tracking-wide text-slate-400">Produto especializado</p><p className="mt-1 text-sm font-black">Equity One Médicos</p></div>
+              {user.medical_product?.status === "ACTIVE" ? (
+                <Button variant="outline" onClick={() => onAction("PRODUCT_REVOKE_MEDICAL")}>Remover acesso</Button>
+              ) : (
+                <Button variant="outline" onClick={() => onAction("PRODUCT_GRANT_MEDICAL")}>Liberar acesso</Button>
+              )}
+            </div>
           </div>
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2">

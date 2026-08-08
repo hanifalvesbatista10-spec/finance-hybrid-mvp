@@ -125,7 +125,7 @@ export function PaymentReturnClient({
             <span className="grid size-11 place-items-center rounded-2xl bg-indigo-600 text-white">
               <Landmark className="size-5" />
             </span>
-            <strong>FINANCE HYBRID</strong>
+            <strong>EQUITY ONE</strong>
           </Link>
 
           <span

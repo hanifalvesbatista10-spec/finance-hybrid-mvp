@@ -13,3 +13,19 @@ body {
 }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 ::selection { background: #c7d2fe; color: #1e1b4b; }
+
+
+/* EQUITY ONE V5.8 */
+:root {
+  --equity-ink: #090a0d;
+  --equity-graphite: #11141a;
+  --equity-panel: #181c23;
+  --equity-gold: #c9a34d;
+  --equity-gold-soft: #e5c779;
+  --equity-canvas: #f4f3ef;
+  --equity-border: #e6e1d6;
+}
+body { background: var(--equity-canvas); }
+.equity-grid { background-image: radial-gradient(circle at 1px 1px, rgba(201,163,77,.12) 1px, transparent 0); background-size: 24px 24px; }
+.equity-gold-text { background: linear-gradient(135deg,#f0db9a,#b98c32); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.equity-card { border:1px solid rgba(15,23,42,.07); box-shadow:0 18px 50px rgba(15,23,42,.07); }

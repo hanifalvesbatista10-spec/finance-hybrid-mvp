@@ -113,7 +113,7 @@ export function LoginClient({
             <Landmark className="size-6" />
           </span>
           <div>
-            <p className="font-bold">Finance Hybrid</p>
+            <p className="font-bold">Equity One</p>
             <p className="text-xs text-slate-400">
               Pessoal e institucional
             </p>

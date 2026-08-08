@@ -190,7 +190,7 @@ export default function AssinaturaPage() {
               <Landmark className="size-5" />
             </span>
             <strong className="text-sm tracking-wide">
-              FINANCE HYBRID
+              EQUITY ONE
             </strong>
           </Link>
 
@@ -250,8 +250,8 @@ export default function AssinaturaPage() {
                 label="Plano"
                 value={
                   checkout.business
-                    ? "Finance Hybrid Business"
-                    : "Finance Hybrid Personal"
+                    ? "Equity One Business"
+                    : "Equity One Personal"
                 }
               />
 

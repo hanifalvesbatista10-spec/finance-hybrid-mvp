@@ -1,134 +1,15 @@
 "use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, ArrowDownRight, ArrowUpRight, Landmark, Wallet } from "lucide-react";
+import { useCallback,useEffect,useMemo,useState } from "react";
+import { ArrowDownRight,ArrowUpRight,CalendarDays,ChevronRight,CircleDollarSign,Wallet } from "lucide-react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { currency, getMonthRange, type Transaction } from "@/lib/finance";
-import { StatCard } from "@/components/finance/StatCard";
-import { TransactionsManager } from "@/components/finance/TransactionsManager";
+import { currency,getMonthRange,type Transaction } from "@/lib/finance";
 import { UpcomingAlertsBanner } from "@/components/finance/UpcomingAlertsBanner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/finance/EmptyState";
-
-export function FinanceOverview({ institutional }: { institutional: boolean }) {
-  const { supabase, user } = useAuth();
-  const [items, setItems] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!user) return;
-    const { start, end } = getMonthRange();
-    setLoading(true);
-    const { data } = await supabase
-      .from("transactions")
-      .select("*")
-      .gte("occurred_on", start)
-      .lte("occurred_on", end);
-    setItems((data ?? []) as Transaction[]);
-    setLoading(false);
-  }, [supabase, user]);
-
-  useEffect(() => {
-    void load();
-    const channel = supabase
-      .channel("overview-transactions")
-      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => void load())
-      .subscribe();
-    return () => { void supabase.removeChannel(channel); };
-  }, [load, supabase]);
-
-  const totals = useMemo(() => {
-    const income = items.filter((i) => i.type === "INCOME").reduce((sum, i) => sum + Number(i.amount), 0);
-    const expense = items.filter((i) => i.type === "EXPENSE").reduce((sum, i) => sum + Number(i.amount), 0);
-    return { income, expense, balance: income - expense };
-  }, [items]);
-
-  const expenseCategories = useMemo(() => {
-    const grouped = new Map<string, number>();
-    items.filter((i) => i.type === "EXPENSE").forEach((i) => {
-      const key = institutional ? i.cost_center || "Sem centro" : i.category;
-      grouped.set(key, (grouped.get(key) ?? 0) + Number(i.amount));
-    });
-    return [...grouped.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-  }, [institutional, items]);
-
-  const max = Math.max(...expenseCategories.map(([, value]) => value), 1);
-
-  return (
-    <div className="space-y-7">
-      <UpcomingAlertsBanner />
-      <section>
-        <p className="text-sm font-bold text-indigo-700">
-          {institutional ? "GESTÃO INSTITUCIONAL" : "GESTÃO PESSOAL"}
-        </p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
-          {institutional ? "Fluxo de caixa" : "Visão financeira"}
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
-          Valores calculados exclusivamente a partir dos seus registros do mês atual.
-        </p>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <StatCard
-          title={institutional ? "Fluxo líquido" : "Saldo do mês"}
-          value={loading ? "—" : currency.format(totals.balance)}
-          helper="Receitas menos despesas do mês"
-          icon={Wallet}
-          tone={totals.balance >= 0 ? "indigo" : "rose"}
-        />
-        <StatCard
-          title="Receitas"
-          value={loading ? "—" : currency.format(totals.income)}
-          helper={`${items.filter((i) => i.type === "INCOME").length} lançamento(s)`}
-          icon={ArrowUpRight}
-          tone="emerald"
-        />
-        <StatCard
-          title="Despesas"
-          value={loading ? "—" : currency.format(totals.expense)}
-          helper={`${items.filter((i) => i.type === "EXPENSE").length} lançamento(s)`}
-          icon={ArrowDownRight}
-          tone="rose"
-        />
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1.45fr_.55fr]">
-        <TransactionsManager institutional={institutional} compact />
-
-        <Card className="border-0 shadow-[0_12px_35px_rgba(15,23,42,.07)]">
-          <CardHeader>
-            <CardTitle>{institutional ? "Despesas por centro" : "Despesas por categoria"}</CardTitle>
-            <p className="text-sm text-slate-500">Distribuição do mês atual.</p>
-          </CardHeader>
-          <CardContent>
-            {expenseCategories.length === 0 ? (
-              <EmptyState
-                icon={institutional ? Landmark : Activity}
-                title="Sem despesas no período"
-                description="As categorias aparecerão aqui quando você registrar despesas."
-              />
-            ) : (
-              <div className="space-y-5">
-                {expenseCategories.map(([name, value]) => (
-                  <div key={name}>
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <span className="truncate text-sm font-bold text-slate-700">{name}</span>
-                      <span className="text-xs font-black text-slate-900">{currency.format(value)}</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className="h-full rounded-full bg-indigo-600"
-                        style={{ width: `${Math.max(5, (value / max) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-    </div>
-  );
-}
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+export function FinanceOverview({institutional}:{institutional:boolean}){const {supabase,user,profile}=useAuth();const [items,setItems]=useState<Transaction[]>([]),[loading,setLoading]=useState(true);const load=useCallback(async()=>{if(!user)return;const {start,end}=getMonthRange();setLoading(true);const {data}=await supabase.from('transactions').select('*').gte('occurred_on',start).lte('occurred_on',end).order('occurred_on',{ascending:true});setItems((data??[]) as Transaction[]);setLoading(false)},[supabase,user]);useEffect(()=>{void load();const c=supabase.channel(`equity-overview-${user?.id||'anon'}`).on('postgres_changes',{event:'*',schema:'public',table:'transactions'},()=>void load()).subscribe();return()=>{void supabase.removeChannel(c)}},[load,supabase,user?.id]);const totals=useMemo(()=>{const income=items.filter(x=>x.type==='INCOME').reduce((s,x)=>s+Number(x.amount),0),expense=items.filter(x=>x.type==='EXPENSE').reduce((s,x)=>s+Number(x.amount),0);return {income,expense,balance:income-expense}},[items]);const cats=useMemo(()=>{const m=new Map<string,number>();items.filter(x=>x.type==='EXPENSE').forEach(x=>{const k=institutional?x.cost_center||'Sem centro':x.category;m.set(k,(m.get(k)||0)+Number(x.amount))});return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5)},[items,institutional]);const max=Math.max(...cats.map(x=>x[1]),1);const month=new Intl.DateTimeFormat('pt-BR',{month:'long',year:'numeric'}).format(new Date());return <div className="space-y-7"><UpcomingAlertsBanner/><section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><p className="text-xs font-black uppercase tracking-[.2em] text-[#9b772c]">{institutional?'Equity One Negócios':'Equity One Pessoal'}</p><h1 className="mt-2 text-3xl font-black tracking-[-.03em] text-[#101116] md:text-4xl">Olá, {profile?.full_name?.split(' ')[0]||'bem-vindo'}.</h1><p className="mt-2 capitalize text-sm text-slate-500">Visão financeira · {month}</p></div><Link href="/dashboard/lancamentos"><Button className="rounded-xl bg-[#101116]">Novo lançamento</Button></Link></section>
+<section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Kpi title={institutional?'Fluxo líquido':'Saldo do mês'} value={loading?'—':currency.format(totals.balance)} icon={Wallet} tone="gold" helper="Receitas menos despesas"/><Kpi title="Receitas" value={loading?'—':currency.format(totals.income)} icon={ArrowUpRight} tone="green" helper={`${items.filter(x=>x.type==='INCOME').length} lançamentos`}/><Kpi title="Despesas" value={loading?'—':currency.format(totals.expense)} icon={ArrowDownRight} tone="red" helper={`${items.filter(x=>x.type==='EXPENSE').length} lançamentos`}/><Kpi title="Movimentações" value={String(items.length)} icon={CircleDollarSign} tone="slate" helper="No mês atual"/></section>
+<section className="grid gap-6 xl:grid-cols-[1.45fr_.75fr]"><Card className="equity-card border-0 bg-white"><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Evolução do mês</CardTitle><p className="mt-1 text-sm text-slate-500">Acumulado de receitas e despesas.</p></div><CalendarDays className="size-5 text-[#b18a39]"/></CardHeader><CardContent><MiniChart items={items}/></CardContent></Card><Card className="equity-card border-0 bg-[#0d0f13] text-white"><CardHeader><CardTitle className="text-white">Distribuição de despesas</CardTitle><p className="text-sm text-slate-500">Principais grupos do período.</p></CardHeader><CardContent>{cats.length===0?<div className="grid min-h-56 place-items-center text-center text-sm text-slate-500">Registre despesas para visualizar a distribuição.</div>:<div className="space-y-5">{cats.map(([n,v])=><div key={n}><div className="mb-2 flex justify-between gap-3"><span className="truncate text-sm font-bold text-slate-300">{n}</span><span className="text-xs font-black text-[#dec071]">{currency.format(v)}</span></div><div className="h-1.5 rounded-full bg-white/10"><div className="h-full rounded-full bg-[#c9a34d]" style={{width:`${Math.max(6,v/max*100)}%`}}/></div></div>)}</div>}</CardContent></Card></section>
+<section className="equity-card rounded-3xl bg-white p-6"><div className="mb-5 flex items-center justify-between"><div><h2 className="font-black">Movimentações recentes</h2><p className="mt-1 text-sm text-slate-500">Últimos registros do mês.</p></div><Link href="/dashboard/lancamentos" className="flex items-center gap-1 text-sm font-bold text-[#9b772c]">Ver todas<ChevronRight className="size-4"/></Link></div><div className="divide-y divide-slate-100">{items.slice(-5).reverse().map(i=><div key={i.id} className="flex items-center gap-4 py-4"><span className={`grid size-10 place-items-center rounded-xl ${i.type==='INCOME'?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}`}>{i.type==='INCOME'?<ArrowUpRight className="size-4"/>:<ArrowDownRight className="size-4"/>}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{i.description}</p><p className="text-xs text-slate-400">{i.category}</p></div><span className={`text-sm font-black ${i.type==='INCOME'?'text-emerald-700':'text-rose-700'}`}>{i.type==='INCOME'?'+':'-'}{currency.format(Number(i.amount))}</span></div>)}{!items.length&&<div className="py-12 text-center text-sm text-slate-400">Nenhuma movimentação registrada neste mês.</div>}</div></section></div>}
+function Kpi({title,value,icon:Icon,tone,helper}:{title:string;value:string;icon:any;tone:string;helper:string}){const cls:any={gold:'bg-[#c9a34d]/12 text-[#98742b]',green:'bg-emerald-50 text-emerald-700',red:'bg-rose-50 text-rose-700',slate:'bg-slate-100 text-slate-700'};return <div className="equity-card rounded-3xl bg-white p-6"><div className="flex items-start justify-between"><div><p className="text-sm font-semibold text-slate-500">{title}</p><p className="mt-3 text-2xl font-black tracking-tight">{value}</p></div><span className={`grid size-11 place-items-center rounded-2xl ${cls[tone]}`}><Icon className="size-5"/></span></div><p className="mt-5 text-xs text-slate-400">{helper}</p></div>}
+function MiniChart({items}:{items:Transaction[]}){if(!items.length)return <div className="grid h-64 place-items-center rounded-2xl bg-slate-50 text-sm text-slate-400">O gráfico será construído com seus lançamentos.</div>;let acc=0;const pts=items.map((i,idx)=>{acc+=i.type==='INCOME'?Number(i.amount):-Number(i.amount);return {x:idx,y:acc}});const min=Math.min(...pts.map(p=>p.y)),max=Math.max(...pts.map(p=>p.y));const span=max-min||1;const path=pts.map((p,i)=>`${i?'L':'M'} ${(p.x/Math.max(pts.length-1,1))*100} ${90-((p.y-min)/span)*70}`).join(' ');return <div className="h-64 w-full rounded-2xl bg-[#faf9f6] p-4"><svg viewBox="0 0 100 100" className="h-full w-full" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#c9a34d" stopOpacity=".22"/><stop offset="1" stopColor="#c9a34d" stopOpacity="0"/></linearGradient></defs><path d={`${path} L 100 100 L 0 100 Z`} fill="url(#g)"/><path d={path} fill="none" stroke="#b48a36" strokeWidth="1.6" vectorEffect="non-scaling-stroke"/></svg></div>}

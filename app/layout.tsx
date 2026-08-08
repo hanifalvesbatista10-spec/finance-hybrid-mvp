@@ -3,20 +3,14 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Finance Hybrid",
-  description: "Gestão financeira pessoal e institucional.",
+  title: "Equity One | Gestão Financeira Inteligente",
+  description: "Gestão financeira pessoal, empresarial e especializada em um único ecossistema.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body>
-        <Providers>{children}</Providers>
-      </body>
+      <body><Providers>{children}</Providers></body>
     </html>
   );
 }

@@ -390,7 +390,7 @@ export function ReportsCenter({
           </table>
 
           <footer>
-            Gerado pelo Finance Hybrid em ${new Date().toLocaleString("pt-BR")}.
+            Gerado pelo Equity One em ${new Date().toLocaleString("pt-BR")}.
           </footer>
 
           <script>

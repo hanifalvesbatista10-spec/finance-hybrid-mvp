@@ -3,8 +3,8 @@ import { adminSupabase } from "@/lib/admin";
 
 export const INFINITEPAY_HANDLE = "aphhardcore";
 export const PLAN_CONFIG = {
-  PERSONAL: { amount: 1990, description: "Finance Hybrid Personal — Controle Financeiro Completo" },
-  BUSINESS: { amount: 5990, description: "Finance Hybrid Business — Gestão Financeira Empresarial" },
+  PERSONAL: { amount: 1990, description: "Equity One Pessoal — Gestão Financeira Completa" },
+  BUSINESS: { amount: 5990, description: "Equity One Negócios — Gestão Financeira Empresarial" },
 } as const;
 export type CheckoutPlan = keyof typeof PLAN_CONFIG;
 

@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
   const ids = listed.users.map((user) => user.id);
 
-  const [profilesResult, subscriptionsResult, ordersResult] = await Promise.all([
+  const [profilesResult, subscriptionsResult, ordersResult, productsResult] = await Promise.all([
     ids.length
       ? adminSupabase
           .from("profiles")
@@ -50,6 +50,12 @@ export async function GET(request: Request) {
           .select("user_id,status,amount,order_nsu,created_at,receipt_url")
           .in("user_id", ids)
           .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as any[], error: null }),    ids.length
+      ? adminSupabase
+          .from("user_products")
+          .select("user_id,product_code,status")
+          .in("user_id", ids)
+          .eq("product_code", "MEDICAL")
       : Promise.resolve({ data: [] as any[], error: null }),
   ]);
 
@@ -66,6 +72,8 @@ export async function GET(request: Request) {
       subscription,
     ]),
   );
+
+  const productMap = new Map((productsResult?.data ?? []).map((item: any) => [item.user_id, item]));
 
   const latestOrderMap = new Map();
   for (const order of ordersResult.data ?? []) {
@@ -84,6 +92,7 @@ export async function GET(request: Request) {
       ...profileMap.get(user.id),
       subscription: subscriptionMap.get(user.id) ?? null,
       latest_order: latestOrderMap.get(user.id) ?? null,
+      medical_product: productMap.get(user.id) ?? null,
     })),
   });
 }
@@ -367,6 +376,10 @@ export async function PATCH(request: Request) {
       },
       { onConflict: "user_id" },
     );
+  } else if (action === "PRODUCT_GRANT_MEDICAL") {
+    await adminSupabase.from("user_products").upsert({ user_id: id, product_code: "MEDICAL", status: "ACTIVE", granted_by: auth.user.id }, { onConflict: "user_id,product_code" });
+  } else if (action === "PRODUCT_REVOKE_MEDICAL") {
+    await adminSupabase.from("user_products").delete().eq("user_id", id).eq("product_code", "MEDICAL");
   } else {
     return NextResponse.json(
       { error: "Ação inválida." },

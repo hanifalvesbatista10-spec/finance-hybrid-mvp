@@ -43,7 +43,7 @@ export default async function AdesaoPage({
             <span className="grid size-10 place-items-center rounded-xl bg-indigo-600 text-white">
               <Landmark className="size-5" />
             </span>
-            <strong>FINANCE HYBRID</strong>
+            <strong>EQUITY ONE</strong>
           </Link>
 
           <Link href="/login">
@@ -80,8 +80,8 @@ export default async function AdesaoPage({
                 <div>
                   <CardTitle>
                     {business
-                      ? "Finance Hybrid Business"
-                      : "Finance Hybrid Personal"}
+                      ? "Equity One Business"
+                      : "Equity One Personal"}
                   </CardTitle>
                   <p className="mt-1 text-sm text-slate-500">
                     {business

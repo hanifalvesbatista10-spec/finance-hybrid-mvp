@@ -39,6 +39,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   adminPreviewProduct: AdminPreviewProduct;
   setAdminPreviewProduct: (product: AdminPreviewProduct) => void;
+  ownerProductAccess: boolean;
 }
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -82,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [adminPreviewProduct, setAdminPreviewProductState] = useState<AdminPreviewProduct>("PERSONAL");
+  const [ownerProductAccess, setOwnerProductAccess] = useState(false);
 
   const loadProfile = useCallback(async (userId: string) => {
     try {
@@ -102,6 +104,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadProfile(session.user.id);
   }, [loadProfile, session?.user.id]);
 
+  const refreshOwnerProductAccess = useCallback(async (accessToken?: string | null) => {
+    if (!accessToken) {
+      setOwnerProductAccess(false);
+      return;
+    }
+    try {
+      const response = await fetch("/api/owner/access", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: "no-store",
+      });
+      const json = await response.json().catch(() => ({ allowed: false }));
+      setOwnerProductAccess(Boolean(response.ok && json.allowed));
+    } catch {
+      setOwnerProductAccess(false);
+    }
+  }, []);
+
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
 
@@ -111,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setSession(null);
     setProfile(null);
+    setOwnerProductAccess(false);
   }, []);
 
   useEffect(() => {
@@ -153,8 +173,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (initialSession?.user.id) {
         await loadProfile(initialSession.user.id);
+        await refreshOwnerProductAccess(initialSession.access_token);
       } else {
         setProfile(null);
+        setOwnerProductAccess(false);
       }
 
       if (active) setLoading(false);
@@ -172,11 +194,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(nextSession);
 
         if (nextSession?.user.id) {
-          void loadProfile(nextSession.user.id).finally(() => {
+          void Promise.all([
+            loadProfile(nextSession.user.id),
+            refreshOwnerProductAccess(nextSession.access_token),
+          ]).finally(() => {
             if (active) setLoading(false);
           });
         } else {
           setProfile(null);
+          setOwnerProductAccess(false);
           setLoading(false);
         }
       }, 0);
@@ -186,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false;
       subscription.unsubscribe();
     };
-  }, [loadProfile]);
+  }, [loadProfile, refreshOwnerProductAccess]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -199,8 +225,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       adminPreviewProduct,
       setAdminPreviewProduct,
+      ownerProductAccess,
     }),
-    [adminPreviewProduct, loading, profile, refreshProfile, session, setAdminPreviewProduct, signOut],
+    [adminPreviewProduct, loading, ownerProductAccess, profile, refreshProfile, session, setAdminPreviewProduct, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

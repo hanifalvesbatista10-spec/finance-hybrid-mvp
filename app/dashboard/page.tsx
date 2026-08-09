@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, profile, loading, adminPreviewProduct } = useAuth();
+  const { user, profile, loading, adminPreviewProduct, ownerProductAccess } = useAuth();
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -27,7 +27,7 @@ export default function DashboardPage() {
     );
   }
 
-  const institutional = profile.system_role === "SUPER_ADMIN"
+  const institutional = ownerProductAccess
     ? adminPreviewProduct === "BUSINESS"
     : profile.role === "INSTITUTIONAL";
 

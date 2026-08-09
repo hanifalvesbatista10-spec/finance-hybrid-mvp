@@ -4,7 +4,7 @@ import { TransactionsManager } from "@/components/finance/TransactionsManager";
 import { useAuth } from "@/context/AuthContext";
 
 export default function LancamentosPage() {
-  const { profile, adminPreviewProduct } = useAuth();
+  const { profile, adminPreviewProduct, ownerProductAccess } = useAuth();
 
   return (
     <div className="space-y-7">
@@ -13,7 +13,7 @@ export default function LancamentosPage() {
         <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Lançamentos</h1>
         <p className="mt-2 text-sm text-slate-500">Cadastre, consulte e exclua suas receitas e despesas.</p>
       </div>
-      <TransactionsManager institutional={profile?.system_role === "SUPER_ADMIN" ? adminPreviewProduct === "BUSINESS" : profile?.role === "INSTITUTIONAL"} />
+      <TransactionsManager institutional={ownerProductAccess ? adminPreviewProduct === "BUSINESS" : profile?.role === "INSTITUTIONAL"} />
     </div>
   );
 }

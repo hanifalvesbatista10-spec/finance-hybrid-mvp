@@ -15,9 +15,9 @@ const options: Array<{ product: AdminPreviewProduct; label: string; icon: typeof
 export function SuperAdminProductSwitcher({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { profile, adminPreviewProduct, setAdminPreviewProduct } = useAuth();
+  const { ownerProductAccess, adminPreviewProduct, setAdminPreviewProduct } = useAuth();
 
-  if (profile?.system_role !== "SUPER_ADMIN") return null;
+  if (!ownerProductAccess) return null;
 
   function select(product: AdminPreviewProduct) {
     setAdminPreviewProduct(product);

@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { StatCard } from "@/components/finance/StatCard";
 import { EquityOneLogo } from "@/components/EquityOneLogo";
+import { SuperAdminProductSwitcher } from "@/components/admin/SuperAdminProductSwitcher";
 import { useAuth } from "@/context/AuthContext";
 import {
   formatSubscriptionDate,
@@ -349,7 +350,7 @@ export default function AdminPage() {
       <div className="mx-auto max-w-[1500px] space-y-7">
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="mb-4"><EquityOneLogo className="h-16 w-auto" /></div>
+            <div className="mb-4"><EquityOneLogo className="h-16 w-auto" /></div><div className="mb-6 max-w-2xl"><SuperAdminProductSwitcher compact /></div>
             <p className="text-sm font-black text-[#9a762b]">SUPER ADMIN</p>
             <h1 className="mt-2 text-3xl font-black text-slate-950 md:text-4xl">
               Controle da plataforma

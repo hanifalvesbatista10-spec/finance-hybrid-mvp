@@ -17,6 +17,7 @@ import {
 } from "@supabase/supabase-js";
 
 export type ProfileRole = "PERSONAL" | "INSTITUTIONAL";
+export type AdminPreviewProduct = "PERSONAL" | "BUSINESS" | "MEDICAL";
 
 export interface Profile {
   id: string;
@@ -36,6 +37,8 @@ interface AuthContextValue {
   loading: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
+  adminPreviewProduct: AdminPreviewProduct;
+  setAdminPreviewProduct: (product: AdminPreviewProduct) => void;
 }
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -78,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [adminPreviewProduct, setAdminPreviewProductState] = useState<AdminPreviewProduct>("PERSONAL");
 
   const loadProfile = useCallback(async (userId: string) => {
     try {
@@ -107,6 +111,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setSession(null);
     setProfile(null);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.sessionStorage.getItem("equity-one-admin-preview");
+    if (saved === "PERSONAL" || saved === "BUSINESS" || saved === "MEDICAL") {
+      setAdminPreviewProductState(saved);
+    }
+  }, []);
+
+  const setAdminPreviewProduct = useCallback((product: AdminPreviewProduct) => {
+    setAdminPreviewProductState(product);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("equity-one-admin-preview", product);
+    }
   }, []);
 
   useEffect(() => {
@@ -178,8 +197,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       refreshProfile,
       signOut,
+      adminPreviewProduct,
+      setAdminPreviewProduct,
     }),
-    [loading, profile, refreshProfile, session, signOut],
+    [adminPreviewProduct, loading, profile, refreshProfile, session, setAdminPreviewProduct, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

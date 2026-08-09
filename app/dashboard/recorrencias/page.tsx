@@ -4,11 +4,11 @@ import { RecurringEntriesManager } from "@/components/finance/RecurringEntriesMa
 import { useAuth } from "@/context/AuthContext";
 
 export default function RecorrenciasPage() {
-  const { profile } = useAuth();
+  const { profile, adminPreviewProduct } = useAuth();
 
   return (
     <RecurringEntriesManager
-      institutional={profile?.role === "INSTITUTIONAL"}
+      institutional={profile?.system_role === "SUPER_ADMIN" ? adminPreviewProduct === "BUSINESS" : profile?.role === "INSTITUTIONAL"}
     />
   );
 }

@@ -1,4 +1,4 @@
-export type SubscriptionPlan = "PERSONAL" | "BUSINESS";
+export type SubscriptionPlan = "PERSONAL" | "BUSINESS" | "MEDICAL";
 
 export type SubscriptionStatus =
   | "PENDING"

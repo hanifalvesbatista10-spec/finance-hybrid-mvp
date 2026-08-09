@@ -3,8 +3,9 @@ import { adminSupabase } from "@/lib/admin";
 
 export const INFINITEPAY_HANDLE = "aphhardcore";
 export const PLAN_CONFIG = {
-  PERSONAL: { amount: 1990, description: "Equity One Pessoal — Gestão Financeira Completa" },
+  PERSONAL: { amount: 1990, description: "Equity One Pessoal — Gestão Financeira" },
   BUSINESS: { amount: 5990, description: "Equity One Negócios — Gestão Financeira Empresarial" },
+  MEDICAL: { amount: 5990, description: "Equity One Médicos — Gestão Financeira e Carreira Médica" },
 } as const;
 export type CheckoutPlan = keyof typeof PLAN_CONFIG;
 
@@ -16,9 +17,7 @@ function claimSecret() {
   if (!secret) throw new Error("SUPABASE_SECRET_KEY não configurada no servidor.");
   return secret;
 }
-function sign(value:string) {
-  return createHmac("sha256", claimSecret()).update(value).digest("base64url");
-}
+function sign(value:string) { return createHmac("sha256", claimSecret()).update(value).digest("base64url"); }
 export function createPurchaseClaimToken(orderNsu:string, transactionNsu:string) {
   const payload:ClaimPayload = { order_nsu:orderNsu, transaction_nsu:transactionNsu, exp:Date.now()+60*60*1000 };
   const encoded = Buffer.from(JSON.stringify(payload),"utf8").toString("base64url");
@@ -36,10 +35,29 @@ export function verifyPurchaseClaimToken(token:string) {
   } catch { return null; }
 }
 
+export async function resolveCoupon(plan:CheckoutPlan, rawCode?:string) {
+  const code=String(rawCode??"").trim().toUpperCase();
+  const original=PLAN_CONFIG[plan].amount;
+  if(!code) return { coupon:null as any, originalAmount:original, discountAmount:0, finalAmount:original };
+  const now=new Date().toISOString();
+  const {data:coupon,error}=await adminSupabase.from("coupons").select("*").eq("code",code).eq("is_active",true).maybeSingle();
+  if(error || !coupon) throw new Error("Cupom inválido ou inativo.");
+  if(coupon.starts_at && coupon.starts_at>now) throw new Error("Este cupom ainda não está disponível.");
+  if(coupon.ends_at && coupon.ends_at<now) throw new Error("Este cupom expirou.");
+  const products=Array.isArray(coupon.product_codes)?coupon.product_codes:[];
+  if(products.length && !products.includes(plan)) throw new Error("Este cupom não é válido para este produto.");
+  if(coupon.max_uses && Number(coupon.uses_count||0)>=Number(coupon.max_uses)) throw new Error("Este cupom atingiu o limite de utilizações.");
+  let discount=0;
+  if(coupon.discount_type==="PERCENT") discount=Math.round(original*(Number(coupon.discount_value)/100));
+  else discount=Math.round(Number(coupon.discount_value)*100);
+  discount=Math.max(0,Math.min(discount,original-100));
+  return {coupon,originalAmount:original,discountAmount:discount,finalAmount:original-discount};
+}
+
 export async function confirmInfinitePayPayment(input:ConfirmationInput) {
   const {data:order,error:orderError}=await adminSupabase
     .from("subscription_orders")
-    .select("order_nsu,amount,status,user_id,transaction_nsu")
+    .select("order_nsu,amount,status,user_id,transaction_nsu,plan,coupon_id")
     .eq("order_nsu",input.orderNsu).maybeSingle();
   if (orderError || !order) return {ok:false as const,status:404,message:"Pedido não encontrado."};
   if (order.status === "ACTIVATED") return {ok:true as const,alreadyActivated:true,needsRegistration:false,periodEnd:null,claimToken:null};
@@ -64,6 +82,7 @@ export async function confirmInfinitePayPayment(input:ConfirmationInput) {
     p_receipt_url:input.receiptUrl??"",p_paid_amount:paidAmount,p_capture_method:String(verification.capture_method??"")
   });
   if(error) return {ok:false as const,status:400,message:error.message};
+  if(order.coupon_id) await adminSupabase.rpc("register_coupon_redemption",{p_order_nsu:input.orderNsu});
   const needsRegistration=Boolean(data?.needs_registration);
   return {ok:true as const,alreadyActivated:Boolean(data?.already_activated),needsRegistration,
     periodEnd:data?.period_end??null,

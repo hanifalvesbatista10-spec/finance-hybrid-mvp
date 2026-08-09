@@ -112,10 +112,17 @@ export async function POST(request: Request) {
     email,
     password,
     full_name,
-    role = "PERSONAL",
+    plan = "PERSONAL",
+    role: legacyRole,
     system_role = "USER",
     access_days = 30,
   } = body;
+  const selectedPlan = ["PERSONAL", "BUSINESS", "MEDICAL"].includes(plan)
+    ? plan
+    : legacyRole === "INSTITUTIONAL"
+      ? "BUSINESS"
+      : "PERSONAL";
+  const role = selectedPlan === "BUSINESS" ? "INSTITUTIONAL" : "PERSONAL";
 
   if (!email || !password || !full_name) {
     return NextResponse.json(
@@ -156,7 +163,7 @@ export async function POST(request: Request) {
   await adminSupabase.from("subscriptions").upsert(
     {
       user_id: data.user.id,
-      plan: role === "INSTITUTIONAL" ? "BUSINESS" : "PERSONAL",
+      plan: selectedPlan,
       status: "ACTIVE",
       starts_at: now.toISOString(),
       current_period_start: now.toISOString(),
@@ -170,6 +177,11 @@ export async function POST(request: Request) {
     { onConflict: "user_id" },
   );
 
+  await adminSupabase.from("user_products").upsert(
+    { user_id: data.user.id, product_code: selectedPlan, status: "ACTIVE" },
+    { onConflict: "user_id,product_code" },
+  );
+
   await adminSupabase.from("audit_logs").insert({
     actor_id: auth.user.id,
     action: "USER_CREATED",
@@ -177,6 +189,7 @@ export async function POST(request: Request) {
     metadata: {
       email,
       role,
+      plan: selectedPlan,
       system_role,
       access_days,
     },

@@ -6,6 +6,7 @@ import {
   WalletCards, Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EquityOneLogo } from "@/components/EquityOneLogo";
 
 const pains = [
   {icon: WalletCards, title:"Você recebe, paga, transfere… e ainda não sabe o que realmente sobrou.", text:"Quando o dinheiro está espalhado entre contas, cartões, compromissos e planilhas, o saldo sozinho deixa de contar a verdade."},
@@ -45,9 +46,8 @@ export default function HomePage(){
   return <main className="min-h-screen overflow-hidden bg-[#f3f1eb] text-[#0b0c0f]">
     <header className="sticky top-0 z-50 border-b border-black/[.06] bg-[#f3f1eb]/90 backdrop-blur-xl">
       <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-4 md:px-8">
-        <Link href="/" className="flex items-center gap-3">
-          <span className="grid size-11 place-items-center rounded-2xl bg-[#0b0c0f] text-[#d4ad55] shadow-lg shadow-black/10"><BriefcaseBusiness className="size-5"/></span>
-          <div><strong className="block text-sm tracking-[.22em]">EQUITY ONE</strong><span className="text-[9px] font-bold uppercase tracking-[.2em] text-slate-500">Gestão financeira inteligente</span></div>
+        <Link href="/" className="flex items-center">
+          <EquityOneLogo priority className="h-[62px] w-auto"/>
         </Link>
         <nav className="hidden items-center gap-7 text-sm font-semibold text-slate-600 lg:flex">
           <a href="#problema" className="hover:text-black">Por que Equity One</a>

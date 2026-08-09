@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { EquityOneLogo } from "@/components/EquityOneLogo";
 import {
   Card,
   CardContent,
@@ -39,12 +40,7 @@ export default async function AdesaoPage({
     <main className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4 md:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-indigo-600 text-white">
-              <Landmark className="size-5" />
-            </span>
-            <strong>EQUITY ONE</strong>
-          </Link>
+          <Link href="/" className="flex items-center"><EquityOneLogo className="h-14 w-auto"/></Link>
 
           <Link href="/login">
             <Button variant="outline">Entrar</Button>

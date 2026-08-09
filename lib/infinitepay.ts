@@ -50,7 +50,9 @@ export async function resolveCoupon(plan:CheckoutPlan, rawCode?:string) {
   let discount=0;
   if(coupon.discount_type==="PERCENT") discount=Math.round(original*(Number(coupon.discount_value)/100));
   else discount=Math.round(Number(coupon.discount_value)*100);
-  discount=Math.max(0,Math.min(discount,original));
+  // Todo cupom mantém cobrança mínima de R$ 1,00 para preservar o fluxo único do checkout integrado.
+  const maxDiscount=Math.max(0,original-100);
+  discount=Math.max(0,Math.min(discount,maxDiscount));
   return {coupon,originalAmount:original,discountAmount:discount,finalAmount:original-discount};
 }
 

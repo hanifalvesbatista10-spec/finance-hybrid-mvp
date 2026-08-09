@@ -18,6 +18,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { EquityOneLogo } from "@/components/EquityOneLogo";
 import {
   Card,
   CardContent,
@@ -189,7 +190,7 @@ export default function AssinaturaPage() {
               <Landmark className="size-5" />
             </span>
             <strong className="text-sm tracking-wide">
-              EQUITY ONE
+              <EquityOneLogo className="h-14 w-auto"/>
             </strong>
           </Link>
 

@@ -63,19 +63,23 @@ type AdminUser = {
 type Settings = {
   public_signup_enabled: boolean;
   signup_mode: string;
-  personal_checkout_url: string;
-  business_checkout_url: string;
+  personal_price_cents: number;
+  business_price_cents: number;
+  medical_price_cents: number;
   personal_checkout_enabled: boolean;
   business_checkout_enabled: boolean;
+  medical_checkout_enabled: boolean;
 };
 
 const initialSettings: Settings = {
   public_signup_enabled: true,
   signup_mode: "PUBLIC",
-  personal_checkout_url: "",
-  business_checkout_url: "",
+  personal_price_cents: 1990,
+  business_price_cents: 7990,
+  medical_price_cents: 5990,
   personal_checkout_enabled: true,
   business_checkout_enabled: true,
+  medical_checkout_enabled: true,
 };
 
 const PAGE_SIZES = [25, 50, 100];
@@ -93,6 +97,17 @@ function formatDate(value?: string | null) {
     month: "2-digit",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function formatMoneyInput(cents: number) {
+  return String((cents / 100).toFixed(2)).replace(".", ",");
+}
+
+function parseMoneyInput(value: string) {
+  const normalized = value.replace(/\./g, "").replace(",", ".").replace(/[^0-9.]/g, "");
+  const amount = Number(normalized);
+  if (!Number.isFinite(amount)) return 100;
+  return Math.max(100, Math.round(amount * 100));
 }
 
 function daysToEnd(user: AdminUser) {
@@ -475,7 +490,7 @@ export default function AdminPage() {
 
         <Card className="border-0 shadow-[0_12px_35px_rgba(15,23,42,.07)]">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Settings2 className="size-5 text-[#9a762b]" /> Acesso e entrada na plataforma</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Settings2 className="size-5 text-[#9a762b]" /> Operação comercial da plataforma</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
@@ -494,6 +509,39 @@ export default function AdminPage() {
                   <option value="CLOSED">Fechado</option>
                 </Select>
               </label>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-slate-900">Planos e preços do checkout integrado</p>
+                  <p className="mt-1 text-sm text-slate-500">Altere os valores aqui. Os próximos checkouts passam a usar automaticamente os novos preços.</p>
+                </div>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-emerald-700">Dinâmico</span>
+              </div>
+              <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                <PlanPriceField
+                  title="Equity One Pessoal"
+                  value={formatMoneyInput(settingsDraft.personal_price_cents)}
+                  enabled={settingsDraft.personal_checkout_enabled}
+                  onEnabledChange={(value) => setSettingsDraft({ ...settingsDraft, personal_checkout_enabled: value })}
+                  onValueChange={(value) => setSettingsDraft({ ...settingsDraft, personal_price_cents: parseMoneyInput(value) })}
+                />
+                <PlanPriceField
+                  title="Equity One Negócios"
+                  value={formatMoneyInput(settingsDraft.business_price_cents)}
+                  enabled={settingsDraft.business_checkout_enabled}
+                  onEnabledChange={(value) => setSettingsDraft({ ...settingsDraft, business_checkout_enabled: value })}
+                  onValueChange={(value) => setSettingsDraft({ ...settingsDraft, business_price_cents: parseMoneyInput(value) })}
+                />
+                <PlanPriceField
+                  title="Equity One Médicos"
+                  value={formatMoneyInput(settingsDraft.medical_price_cents)}
+                  enabled={settingsDraft.medical_checkout_enabled}
+                  onEnabledChange={(value) => setSettingsDraft({ ...settingsDraft, medical_checkout_enabled: value })}
+                  onValueChange={(value) => setSettingsDraft({ ...settingsDraft, medical_price_cents: parseMoneyInput(value) })}
+                />
+              </div>
             </div>
             <div className="flex justify-end">
               <Button onClick={saveSettings} disabled={savingSettings}><Save className="size-4" />{savingSettings ? "Salvando..." : "Salvar configurações"}</Button>
@@ -653,6 +701,46 @@ function UserStateBadge({ status }: { status: string }) {
   };
   const item = map[status] ?? map.EXPIRED;
   return <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase ${item.cls}`}>{item.label}</span>;
+}
+
+function PlanPriceField({
+  title,
+  value,
+  enabled,
+  onEnabledChange,
+  onValueChange,
+}: {
+  title: string;
+  value: string;
+  enabled: boolean;
+  onEnabledChange: (value: boolean) => void;
+  onValueChange: (value: string) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-black text-slate-900">{title}</p>
+          <p className="mt-1 text-xs text-slate-500">Preço mensal cobrado no checkout.</p>
+        </div>
+        <Toggle value={enabled} onChange={onEnabledChange} />
+      </div>
+      <label className="mt-4 block">
+        <span className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Valor mensal</span>
+        <div className="relative">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-slate-500">R$</span>
+          <Input
+            value={value}
+            onChange={(event) => onValueChange(event.target.value)}
+            placeholder="0,00"
+            className="pl-12 font-bold"
+            inputMode="decimal"
+          />
+        </div>
+      </label>
+      <p className="mt-3 text-xs text-slate-500">{enabled ? "Checkout ativo para novas adesões." : "Novas adesões pausadas para este plano."}</p>
+    </div>
+  );
 }
 
 function Toggle({ value, onChange }: { value: boolean; onChange: (value: boolean) => void }) {

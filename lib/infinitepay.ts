@@ -1,13 +1,12 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { adminSupabase } from "@/lib/admin";
+import {
+  getDynamicPlanConfig,
+  type CheckoutPlan,
+} from "@/lib/pricing";
 
 export const INFINITEPAY_HANDLE = "aphhardcore";
-export const PLAN_CONFIG = {
-  PERSONAL: { amount: 1990, description: "Equity One Pessoal — Gestão Financeira" },
-  BUSINESS: { amount: 5990, description: "Equity One Negócios — Gestão Financeira Empresarial" },
-  MEDICAL: { amount: 5990, description: "Equity One Médicos — Gestão Financeira e Carreira Médica" },
-} as const;
-export type CheckoutPlan = keyof typeof PLAN_CONFIG;
+export type { CheckoutPlan };
 
 type ConfirmationInput = { orderNsu:string; transactionNsu:string; invoiceSlug:string; receiptUrl?:string };
 type ClaimPayload = { order_nsu:string; transaction_nsu:string; exp:number };
@@ -37,7 +36,8 @@ export function verifyPurchaseClaimToken(token:string) {
 
 export async function resolveCoupon(plan:CheckoutPlan, rawCode?:string) {
   const code=String(rawCode??"").trim().toUpperCase();
-  const original=PLAN_CONFIG[plan].amount;
+  const planConfig = await getDynamicPlanConfig();
+  const original=planConfig[plan].amount;
   if(!code) return { coupon:null as any, originalAmount:original, discountAmount:0, finalAmount:original };
   const now=new Date().toISOString();
   const {data:coupon,error}=await adminSupabase.from("coupons").select("*").eq("code",code).eq("is_active",true).maybeSingle();
@@ -50,7 +50,6 @@ export async function resolveCoupon(plan:CheckoutPlan, rawCode?:string) {
   let discount=0;
   if(coupon.discount_type==="PERCENT") discount=Math.round(original*(Number(coupon.discount_value)/100));
   else discount=Math.round(Number(coupon.discount_value)*100);
-  // Todo cupom mantém cobrança mínima de R$ 1,00 para preservar o fluxo único do checkout integrado.
   const maxDiscount=Math.max(0,original-100);
   discount=Math.max(0,Math.min(discount,maxDiscount));
   return {coupon,originalAmount:original,discountAmount:discount,finalAmount:original-discount};

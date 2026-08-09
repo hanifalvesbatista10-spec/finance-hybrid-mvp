@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/admin";
-import { INFINITEPAY_HANDLE, PLAN_CONFIG, resolveCoupon, type CheckoutPlan } from "@/lib/infinitepay";
+import { INFINITEPAY_HANDLE, resolveCoupon, type CheckoutPlan } from "@/lib/infinitepay";
+import { getDynamicPlanConfig } from "@/lib/pricing";
 export const dynamic="force-dynamic";
 export const runtime="nodejs";
 function jsonError(message:string,status=400){return NextResponse.json({error:message},{status})}
@@ -11,7 +12,10 @@ export async function POST(request:Request){
     const body=await request.json().catch(()=>({}));
     const requestedPlan=String(body.plan??"").toUpperCase();
     if(!["PERSONAL","BUSINESS","MEDICAL"].includes(requestedPlan)) return jsonError("Plano inválido.",400);
-    const plan=requestedPlan as CheckoutPlan, config=PLAN_CONFIG[plan];
+    const plan=requestedPlan as CheckoutPlan;
+    const planConfig = await getDynamicPlanConfig();
+    const config=planConfig[plan];
+    if (!config.enabled) return jsonError("As inscrições deste plano estão temporariamente pausadas.", 403);
     const pricing=await resolveCoupon(plan,body.coupon_code);
     orderNsu=`EQ-${plan}-${randomUUID().replaceAll("-","").toUpperCase()}`;
     const origin=new URL(request.url).origin;

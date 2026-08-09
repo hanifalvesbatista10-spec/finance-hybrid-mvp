@@ -4,9 +4,9 @@ import { NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/admin";
 import {
   INFINITEPAY_HANDLE,
-  PLAN_CONFIG,
   type CheckoutPlan,
 } from "@/lib/infinitepay";
+import { getDynamicPlanConfig } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -80,7 +80,12 @@ export async function POST(request: Request) {
           ? "BUSINESS"
           : "PERSONAL";
 
-    const config = PLAN_CONFIG[plan];
+    const planConfig = await getDynamicPlanConfig();
+    const config = planConfig[plan];
+
+    if (!config.enabled) {
+      return jsonError("As renovações deste plano estão temporariamente pausadas.", 403);
+    }
     orderNsu = `EQ-${plan}-${randomUUID().replaceAll("-", "").toUpperCase()}`;
     const origin = new URL(request.url).origin;
 

@@ -34,10 +34,12 @@ import {
 } from "@/lib/subscriptions";
 
 type CheckoutSettings = {
-  personal_checkout_url: string | null;
-  business_checkout_url: string | null;
+  personal_price_cents: number;
+  business_price_cents: number;
+  medical_price_cents: number;
   personal_checkout_enabled: boolean;
   business_checkout_enabled: boolean;
+  medical_checkout_enabled: boolean;
 };
 
 export default function AssinaturaPage() {
@@ -150,9 +152,7 @@ export default function AssinaturaPage() {
       enabled: business
         ? settings?.business_checkout_enabled
         : settings?.personal_checkout_enabled,
-      url: business
-        ? settings?.business_checkout_url
-        : settings?.personal_checkout_url,
+      url: null,
     };
   }, [profile?.role, settings, subscription?.plan, isMedical]);
 
@@ -190,7 +190,7 @@ export default function AssinaturaPage() {
               <Landmark className="size-5" />
             </span>
             <strong className="text-sm tracking-wide">
-              <EquityOneLogo className="h-14 w-auto"/>
+              <EquityOneLogo className="h-16 md:h-20 w-auto"/>
             </strong>
           </Link>
 

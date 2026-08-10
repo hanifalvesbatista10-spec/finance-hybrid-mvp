@@ -42,54 +42,6 @@ export class AiProviderError extends Error {
   }
 }
 
-function financialEntrySchema(product: AiProduct) {
-  const kindEnum = product === "MEDICAL" ? ["INCOME", "EXPENSE", "TAX"] : ["INCOME", "EXPENSE"];
-
-  return {
-    type: "object",
-    properties: {
-      entries: {
-        type: "array",
-        minItems: 1,
-        maxItems: 12,
-        items: {
-          type: "object",
-          properties: {
-            kind: { type: "string", enum: kindEnum },
-            description: { type: "string" },
-            merchant: { type: ["string", "null"] },
-            amount: { type: "number", minimum: 0.01 },
-            categories: {
-              type: "array",
-              minItems: 1,
-              maxItems: 4,
-              items: { type: "string" },
-            },
-            occurred_on: { type: "string", format: "date" },
-            occurred_at: { type: "string", format: "date-time" },
-            notes: { type: ["string", "null"] },
-            confidence: { type: "number", minimum: 0, maximum: 1 },
-          },
-          required: [
-            "kind",
-            "description",
-            "merchant",
-            "amount",
-            "categories",
-            "occurred_on",
-            "occurred_at",
-            "notes",
-            "confidence",
-          ],
-          additionalProperties: false,
-        },
-      },
-    },
-    required: ["entries"],
-    additionalProperties: false,
-  };
-}
-
 function buildInstructions(input: InterpretFinancialInput) {
   const categories = allowedCategories(input.product);
   return [
@@ -97,16 +49,19 @@ function buildInstructions(input: InterpretFinancialInput) {
     `Produto atual: ${input.product}.`,
     `Agora: ${input.nowIso}. Fuso do usuário: ${input.timezone}.`,
     "Converta a mensagem do usuário em lançamentos financeiros estruturados.",
+    "Retorne SOMENTE JSON válido, sem markdown, sem texto antes ou depois.",
+    "Use exatamente este formato: {\"entries\":[{\"kind\":\"EXPENSE\",\"description\":\"Compra\",\"merchant\":\"Assaí\",\"amount\":300,\"categories\":[\"Supermercado\"],\"occurred_on\":\"YYYY-MM-DD\",\"occurred_at\":\"ISO-8601\",\"notes\":null,\"confidence\":0.95}]}",
     "Regras obrigatórias:",
     "1. Separe múltiplos gastos/receitas da mesma mensagem em lançamentos distintos.",
-    "2. Resolva hoje, agora, ontem, amanhã e datas relativas usando Agora e o fuso informados.",
-    "3. Nunca invente um valor ausente. Se não houver valor financeiro identificável, não crie lançamento fictício.",
-    "4. Para despesas, use a categoria mais específica da lista permitida como primeira categoria.",
-    "5. O primeiro item de categories é sempre a categoria principal; até três adicionais podem complementar sem duplicar valores.",
-    "6. Preencha merchant quando houver estabelecimento, empresa, hospital, cliente ou fornecedor identificável.",
-    "7. Diminua confidence quando houver ambiguidade.",
-    "8. Quando não houver outra moeda explicitada, interprete valores como reais brasileiros.",
-    "9. Preserve a intenção do usuário; não transforme transferência, investimento ou pagamento em receita sem evidência.",
+    "2. kind deve ser INCOME ou EXPENSE; no produto MEDICAL também pode ser TAX.",
+    "3. Resolva hoje, agora, ontem, amanhã e datas relativas usando Agora e o fuso informados.",
+    "4. Nunca invente um valor ausente. Se não houver valor financeiro identificável, retorne {\"entries\":[]}.",
+    "5. Para despesas, use a categoria mais específica da lista permitida como primeira categoria.",
+    "6. O primeiro item de categories é sempre a categoria principal; até três adicionais podem complementar sem duplicar valores.",
+    "7. Preencha merchant quando houver estabelecimento, empresa, hospital, cliente ou fornecedor identificável.",
+    "8. confidence deve ser um número entre 0 e 1.",
+    "9. Quando não houver outra moeda explicitada, interprete valores como reais brasileiros.",
+    "10. Preserve a intenção do usuário; não transforme transferência, investimento ou pagamento em receita sem evidência.",
     `Receitas permitidas: ${categories.income.join(" | ") || "nenhuma"}.`,
     `Despesas permitidas: ${categories.expense.join(" | ") || "nenhuma"}.`,
     `Impostos permitidos: ${categories.tax.join(" | ") || "nenhuma"}.`,
@@ -117,6 +72,14 @@ function extractGeminiText(payload: any) {
   const parts = payload?.candidates?.[0]?.content?.parts;
   if (!Array.isArray(parts)) return "";
   return parts.map((part: any) => (typeof part?.text === "string" ? part.text : "")).join("").trim();
+}
+
+function stripJsonFence(text: string) {
+  return text
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
 }
 
 function parseGeminiError(raw: string) {
@@ -135,53 +98,12 @@ function friendlyGeminiError(statusCode: number, raw: string) {
   const parsed = parseGeminiError(raw);
   const details = [parsed.status, parsed.message].filter(Boolean).join(": ");
 
-  if (statusCode === 400) {
-    return new AiProviderError(
-      "A Gemini recusou a estrutura enviada pelo sistema.",
-      502,
-      "GEMINI_BAD_REQUEST",
-      details,
-    );
-  }
-  if (statusCode === 401 || statusCode === 403) {
-    return new AiProviderError(
-      "A chave do Gemini não foi aceita. Revise a GEMINI_API_KEY na Vercel.",
-      503,
-      "GEMINI_AUTH",
-      details,
-    );
-  }
-  if (statusCode === 404) {
-    return new AiProviderError(
-      "O modelo Gemini configurado não foi encontrado.",
-      502,
-      "GEMINI_MODEL_NOT_FOUND",
-      details,
-    );
-  }
-  if (statusCode === 429) {
-    return new AiProviderError(
-      "O limite gratuito da Gemini foi atingido temporariamente. Tente novamente em alguns instantes.",
-      429,
-      "GEMINI_RATE_LIMIT",
-      details,
-    );
-  }
-  if (statusCode === 503) {
-    return new AiProviderError(
-      "A Gemini está temporariamente indisponível. Tente novamente em alguns instantes.",
-      503,
-      "GEMINI_UNAVAILABLE",
-      details,
-    );
-  }
-
-  return new AiProviderError(
-    `Não foi possível interpretar o lançamento agora. Gemini HTTP ${statusCode}.`,
-    502,
-    "GEMINI_ERROR",
-    details,
-  );
+  if (statusCode === 400) return new AiProviderError("A Gemini recusou a requisição enviada pelo sistema.", 502, "GEMINI_BAD_REQUEST", details);
+  if (statusCode === 401 || statusCode === 403) return new AiProviderError("A chave do Gemini não foi aceita. Revise a GEMINI_API_KEY na Vercel.", 503, "GEMINI_AUTH", details);
+  if (statusCode === 404) return new AiProviderError("O modelo Gemini configurado não foi encontrado.", 502, "GEMINI_MODEL_NOT_FOUND", details);
+  if (statusCode === 429) return new AiProviderError("O limite gratuito da Gemini foi atingido temporariamente. Tente novamente em alguns instantes.", 429, "GEMINI_RATE_LIMIT", details);
+  if (statusCode === 503) return new AiProviderError("A Gemini está temporariamente indisponível. Tente novamente em alguns instantes.", 503, "GEMINI_UNAVAILABLE", details);
+  return new AiProviderError(`Não foi possível interpretar o lançamento agora. Gemini HTTP ${statusCode}.`, 502, "GEMINI_ERROR", details);
 }
 
 export async function interpretFinancialMessage(input: InterpretFinancialInput): Promise<InterpretFinancialResult> {
@@ -208,7 +130,6 @@ export async function interpretFinancialMessage(input: InterpretFinancialInput):
       generationConfig: {
         temperature: 0.1,
         responseMimeType: "application/json",
-        responseSchema: financialEntrySchema(input.product),
       },
     }),
     cache: "no-store",
@@ -227,13 +148,11 @@ export async function interpretFinancialMessage(input: InterpretFinancialInput):
     throw new AiProviderError("A Gemini retornou uma resposta inválida.", 502, "GEMINI_INVALID_RESPONSE");
   }
 
-  const outputText = extractGeminiText(responseJson);
+  const outputText = stripJsonFence(extractGeminiText(responseJson));
   if (!outputText) {
     const finishReason = String(responseJson?.candidates?.[0]?.finishReason ?? "");
     throw new AiProviderError(
-      finishReason
-        ? `A Gemini não retornou um lançamento utilizável (${finishReason}).`
-        : "A Gemini não retornou lançamentos utilizáveis.",
+      finishReason ? `A Gemini não retornou um lançamento utilizável (${finishReason}).` : "A Gemini não retornou lançamentos utilizáveis.",
       502,
       "GEMINI_EMPTY_RESPONSE",
     );
@@ -247,7 +166,7 @@ export async function interpretFinancialMessage(input: InterpretFinancialInput):
     throw new AiProviderError("Não foi possível organizar o lançamento retornado pela Gemini.", 502, "GEMINI_INVALID_JSON");
   }
 
-  const entries = normalizeAiEntries(parsed.entries ?? [], input.product);
+  const entries = normalizeAiEntries(Array.isArray(parsed.entries) ? parsed.entries : [], input.product);
   if (!entries.length) {
     throw new AiProviderError("Não encontrei um valor financeiro válido nessa descrição.", 400, "NO_FINANCIAL_ENTRY");
   }
@@ -303,9 +222,6 @@ export async function transcribeAudioWithGemini(file: File) {
   }
 
   const text = extractGeminiText(payload).trim();
-  if (!text) {
-    throw new AiProviderError("Não consegui entender essa mensagem de voz.", 400, "GEMINI_AUDIO_EMPTY");
-  }
-
+  if (!text) throw new AiProviderError("Não consegui entender essa mensagem de voz.", 400, "GEMINI_AUDIO_EMPTY");
   return { provider: "GEMINI" as const, model, text };
 }

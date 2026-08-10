@@ -151,12 +151,8 @@ export async function interpretFinancialMessage(input: InterpretFinancialInput):
       ],
       generationConfig: {
         temperature: 0.1,
-        responseFormat: {
-          text: {
-            mimeType: "application/json",
-            schema: financialEntrySchema(input.product),
-          },
-        },
+        responseMimeType: "application/json",
+        responseJsonSchema: financialEntrySchema(input.product),
       },
     }),
     cache: "no-store",

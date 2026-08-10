@@ -14,7 +14,8 @@ export type InterpretFinancialResult = {
   entries: AiFinancialEntry[];
 };
 
-const DEFAULT_MODEL = "gemini-2.5-flash-lite";
+const DEFAULT_MODEL = "gemini-3.5-flash-lite";
+const FALLBACK_MODELS = ["gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
 function getApiKey() {
   const key = process.env.GEMINI_API_KEY?.trim();
@@ -106,11 +107,13 @@ function friendlyGeminiError(statusCode: number, raw: string) {
   return new AiProviderError(`Não foi possível interpretar o lançamento agora. Gemini HTTP ${statusCode}.`, 502, "GEMINI_ERROR", details);
 }
 
-export async function interpretFinancialMessage(input: InterpretFinancialInput): Promise<InterpretFinancialResult> {
-  const apiKey = getApiKey();
-  const model = process.env.GEMINI_FINANCE_MODEL?.trim() || DEFAULT_MODEL;
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+function modelCandidates(envValue?: string | null) {
+  const configured = envValue?.trim();
+  return Array.from(new Set([configured, ...FALLBACK_MODELS].filter(Boolean))) as string[];
+}
 
+async function callGeminiText(apiKey: string, model: string, input: InterpretFinancialInput) {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -118,17 +121,9 @@ export async function interpretFinancialMessage(input: InterpretFinancialInput):
       "x-goog-api-key": apiKey,
     },
     body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: buildInstructions(input) }],
-      },
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: input.text }],
-        },
-      ],
+      systemInstruction: { parts: [{ text: buildInstructions(input) }] },
+      contents: [{ role: "user", parts: [{ text: input.text }] }],
       generationConfig: {
-        temperature: 0.1,
         responseMimeType: "application/json",
       },
     }),
@@ -136,92 +131,123 @@ export async function interpretFinancialMessage(input: InterpretFinancialInput):
   });
 
   const raw = await response.text();
-  if (!response.ok) {
-    console.error("Gemini financial-entry error", response.status, raw.slice(0, 1000));
-    throw friendlyGeminiError(response.status, raw);
+  return { response, raw };
+}
+
+export async function interpretFinancialMessage(input: InterpretFinancialInput): Promise<InterpretFinancialResult> {
+  const apiKey = getApiKey();
+  const candidates = modelCandidates(process.env.GEMINI_FINANCE_MODEL);
+  let last404 = "";
+
+  for (const model of candidates) {
+    const { response, raw } = await callGeminiText(apiKey, model, input);
+
+    if (response.status === 404) {
+      console.warn("Gemini model not found, trying fallback", model, raw.slice(0, 500));
+      last404 = raw;
+      continue;
+    }
+
+    if (!response.ok) {
+      console.error("Gemini financial-entry error", model, response.status, raw.slice(0, 1000));
+      throw friendlyGeminiError(response.status, raw);
+    }
+
+    let responseJson: any = {};
+    try {
+      responseJson = raw ? JSON.parse(raw) : {};
+    } catch {
+      throw new AiProviderError("A Gemini retornou uma resposta inválida.", 502, "GEMINI_INVALID_RESPONSE");
+    }
+
+    const outputText = stripJsonFence(extractGeminiText(responseJson));
+    if (!outputText) {
+      const finishReason = String(responseJson?.candidates?.[0]?.finishReason ?? "");
+      throw new AiProviderError(
+        finishReason ? `A Gemini não retornou um lançamento utilizável (${finishReason}).` : "A Gemini não retornou lançamentos utilizáveis.",
+        502,
+        "GEMINI_EMPTY_RESPONSE",
+      );
+    }
+
+    let parsed: { entries?: AiFinancialEntry[] };
+    try {
+      parsed = JSON.parse(outputText);
+    } catch {
+      console.error("Gemini invalid JSON", model, outputText.slice(0, 1000));
+      throw new AiProviderError("Não foi possível organizar o lançamento retornado pela Gemini.", 502, "GEMINI_INVALID_JSON");
+    }
+
+    const entries = normalizeAiEntries(Array.isArray(parsed.entries) ? parsed.entries : [], input.product);
+    if (!entries.length) {
+      throw new AiProviderError("Não encontrei um valor financeiro válido nessa descrição.", 400, "NO_FINANCIAL_ENTRY");
+    }
+
+    return { provider: "GEMINI", model, entries };
   }
 
-  let responseJson: any = {};
-  try {
-    responseJson = raw ? JSON.parse(raw) : {};
-  } catch {
-    throw new AiProviderError("A Gemini retornou uma resposta inválida.", 502, "GEMINI_INVALID_RESPONSE");
-  }
-
-  const outputText = stripJsonFence(extractGeminiText(responseJson));
-  if (!outputText) {
-    const finishReason = String(responseJson?.candidates?.[0]?.finishReason ?? "");
-    throw new AiProviderError(
-      finishReason ? `A Gemini não retornou um lançamento utilizável (${finishReason}).` : "A Gemini não retornou lançamentos utilizáveis.",
-      502,
-      "GEMINI_EMPTY_RESPONSE",
-    );
-  }
-
-  let parsed: { entries?: AiFinancialEntry[] };
-  try {
-    parsed = JSON.parse(outputText);
-  } catch {
-    console.error("Gemini invalid JSON", outputText.slice(0, 1000));
-    throw new AiProviderError("Não foi possível organizar o lançamento retornado pela Gemini.", 502, "GEMINI_INVALID_JSON");
-  }
-
-  const entries = normalizeAiEntries(Array.isArray(parsed.entries) ? parsed.entries : [], input.product);
-  if (!entries.length) {
-    throw new AiProviderError("Não encontrei um valor financeiro válido nessa descrição.", 400, "NO_FINANCIAL_ENTRY");
-  }
-
-  return { provider: "GEMINI", model, entries };
+  throw friendlyGeminiError(404, last404 || "Nenhum modelo Gemini compatível foi encontrado para esta chave.");
 }
 
 export async function transcribeAudioWithGemini(file: File) {
   const apiKey = getApiKey();
-  const model = process.env.GEMINI_AUDIO_MODEL?.trim() || DEFAULT_MODEL;
+  const candidates = modelCandidates(process.env.GEMINI_AUDIO_MODEL);
   const bytes = Buffer.from(await file.arrayBuffer());
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  let last404 = "";
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey,
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: "Transcreva fielmente esta mensagem de voz em português do Brasil. Retorne somente a transcrição, sem explicações, sem markdown e sem aspas.",
-            },
-            {
-              inlineData: {
-                mimeType: file.type || "audio/webm",
-                data: bytes.toString("base64"),
+  for (const model of candidates) {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: "Transcreva fielmente esta mensagem de voz em português do Brasil. Retorne somente a transcrição, sem explicações, sem markdown e sem aspas.",
               },
-            },
-          ],
-        },
-      ],
-      generationConfig: { temperature: 0 },
-    }),
-    cache: "no-store",
-  });
+              {
+                inlineData: {
+                  mimeType: file.type || "audio/webm",
+                  data: bytes.toString("base64"),
+                },
+              },
+            ],
+          },
+        ],
+      }),
+      cache: "no-store",
+    });
 
-  const raw = await response.text();
-  if (!response.ok) {
-    console.error("Gemini transcription error", response.status, raw.slice(0, 1000));
-    throw friendlyGeminiError(response.status, raw);
+    const raw = await response.text();
+
+    if (response.status === 404) {
+      console.warn("Gemini audio model not found, trying fallback", model, raw.slice(0, 500));
+      last404 = raw;
+      continue;
+    }
+
+    if (!response.ok) {
+      console.error("Gemini transcription error", model, response.status, raw.slice(0, 1000));
+      throw friendlyGeminiError(response.status, raw);
+    }
+
+    let payload: any = {};
+    try {
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      throw new AiProviderError("Não foi possível transcrever o áudio.", 502, "GEMINI_AUDIO_INVALID_RESPONSE");
+    }
+
+    const text = extractGeminiText(payload).trim();
+    if (!text) throw new AiProviderError("Não consegui entender essa mensagem de voz.", 400, "GEMINI_AUDIO_EMPTY");
+    return { provider: "GEMINI" as const, model, text };
   }
 
-  let payload: any = {};
-  try {
-    payload = raw ? JSON.parse(raw) : {};
-  } catch {
-    throw new AiProviderError("Não foi possível transcrever o áudio.", 502, "GEMINI_AUDIO_INVALID_RESPONSE");
-  }
-
-  const text = extractGeminiText(payload).trim();
-  if (!text) throw new AiProviderError("Não consegui entender essa mensagem de voz.", 400, "GEMINI_AUDIO_EMPTY");
-  return { provider: "GEMINI" as const, model, text };
+  throw friendlyGeminiError(404, last404 || "Nenhum modelo Gemini compatível com áudio foi encontrado para esta chave.");
 }

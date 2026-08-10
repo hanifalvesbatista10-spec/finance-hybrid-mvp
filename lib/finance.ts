@@ -7,6 +7,7 @@ export interface Transaction {
   amount: number;
   type: TransactionType;
   category: string;
+  categories?: string[];
   cost_center: string | null;
   occurred_on: string;
   notes: string | null;

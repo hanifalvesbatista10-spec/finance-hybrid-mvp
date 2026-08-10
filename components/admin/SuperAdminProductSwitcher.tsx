@@ -21,22 +21,33 @@ export function SuperAdminProductSwitcher({ compact = false }: { compact?: boole
 
   function select(product: AdminPreviewProduct) {
     setAdminPreviewProduct(product);
+
     if (product === "MEDICAL") {
       router.push("/medicos/dashboard");
       return;
     }
+
     if (pathname.startsWith("/medicos")) {
       router.push("/dashboard");
       return;
     }
+
     router.push("/dashboard");
   }
 
   return (
-    <div className={cn("rounded-2xl border border-[#d2aa51]/20 bg-[#d2aa51]/[.07]", compact ? "p-2" : "p-3")}>
+    <div className={cn(
+      "rounded-2xl border border-[#d2aa51]/25 bg-[#d2aa51]/[.08]",
+      compact ? "p-2" : "p-3",
+    )}>
       {!compact && (
-        <div className="mb-3 flex items-center gap-2 px-1 text-[10px] font-black uppercase tracking-[.18em] text-[#d2aa51]">
-          <ShieldCheck className="size-4" /> Testar produto
+        <div className="mb-3 px-1">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.18em] text-[#d2aa51]">
+            <ShieldCheck className="size-4" /> Ambientes de teste
+          </div>
+          <p className="mt-1 text-[10px] leading-4 text-slate-500">
+            Acesso exclusivo da conta proprietária.
+          </p>
         </div>
       )}
       <div className={cn("grid gap-2", compact ? "grid-cols-3" : "grid-cols-1")}>
@@ -48,8 +59,10 @@ export function SuperAdminProductSwitcher({ compact = false }: { compact?: boole
               type="button"
               onClick={() => select(product)}
               className={cn(
-                "flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition",
-                active ? "bg-[#d2aa51] text-[#0b0d11]" : "bg-white/[.04] text-slate-300 hover:bg-white/[.08] hover:text-white",
+                "flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition",
+                active
+                  ? "bg-[#d2aa51] text-[#0b0d11] shadow-lg shadow-black/20"
+                  : "bg-white/[.04] text-slate-300 hover:bg-white/[.08] hover:text-white",
               )}
             >
               <Icon className="size-4" /> {label}

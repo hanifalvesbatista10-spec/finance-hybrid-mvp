@@ -14,17 +14,20 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MoneyInput, brlInputToNumber } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "./EmptyState";
 import { currency, dateBR, type Transaction, type TransactionType } from "@/lib/finance";
 import { cn } from "@/lib/utils";
+import { CategoryMultiSelect } from "./CategoryMultiSelect";
+import { SmartFinancialInput } from "@/components/ai/SmartFinancialInput";
 
 const initialForm = {
   description: "",
   amount: "",
   type: "EXPENSE" as TransactionType,
-  category: "Outros",
+  categories: [] as string[],
   cost_center: "",
   occurred_on: new Date().toISOString().slice(0, 10),
   notes: "",
@@ -69,7 +72,7 @@ export function TransactionsManager({
     const query = search.trim().toLowerCase();
     if (!query) return items;
     return items.filter((item) =>
-      [item.description, item.category, item.cost_center ?? ""]
+      [item.description, item.category, ...(item.categories ?? []), item.cost_center ?? ""]
         .join(" ")
         .toLowerCase()
         .includes(query),
@@ -82,7 +85,7 @@ export function TransactionsManager({
     setSaving(true);
     setError("");
 
-    const amount = Number(form.amount.replace(",", "."));
+    const amount = brlInputToNumber(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setError("Informe um valor válido.");
       setSaving(false);
@@ -94,7 +97,8 @@ export function TransactionsManager({
       description: form.description.trim(),
       amount,
       type: form.type,
-      category: form.category,
+      category: form.categories[0] || "Outros",
+      categories: form.categories.length ? form.categories : ["Outros"],
       cost_center: institutional ? form.cost_center.trim() || null : null,
       occurred_on: form.occurred_on,
       notes: form.notes.trim() || null,
@@ -123,7 +127,7 @@ export function TransactionsManager({
         <div>
           <CardTitle>{compact ? "Últimos lançamentos" : "Lançamentos financeiros"}</CardTitle>
           <p className="mt-2 text-sm text-slate-500">
-            Receitas e despesas salvas diretamente no Supabase.
+            Registre receitas e despesas em poucos segundos e deixe o Equity One organizar o restante.
           </p>
         </div>
         <Button onClick={() => setOpen((value) => !value)}>
@@ -133,6 +137,15 @@ export function TransactionsManager({
       </CardHeader>
 
       <CardContent className="p-6">
+        {!compact && (
+          <div className="mb-7">
+            <SmartFinancialInput
+              product={institutional ? "BUSINESS" : "PERSONAL"}
+              institutional={institutional}
+              onSaved={load}
+            />
+          </div>
+        )}
         {error && (
           <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
             {error}
@@ -160,12 +173,10 @@ export function TransactionsManager({
               <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
                 Valor
               </span>
-              <Input
+              <MoneyInput
                 required
-                inputMode="decimal"
                 value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                placeholder="0,00"
+                onValueChange={(formatted) => setForm({ ...form, amount: formatted })}
               />
             </label>
 
@@ -175,23 +186,24 @@ export function TransactionsManager({
               </span>
               <Select
                 value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value as TransactionType })}
+                onChange={(e) => setForm({ ...form, type: e.target.value as TransactionType, categories: [] })}
               >
                 <option value="INCOME">Receita</option>
                 <option value="EXPENSE">Despesa</option>
               </Select>
             </label>
 
-            <label>
+            <div className="xl:col-span-2">
               <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
-                Categoria
+                Categoria(s)
               </span>
-              <Input
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                placeholder="Ex.: Alimentação"
+              <CategoryMultiSelect
+                institutional={institutional}
+                type={form.type}
+                value={form.categories}
+                onChange={(categories) => setForm({ ...form, categories })}
               />
-            </label>
+            </div>
 
             {institutional && (
               <label>
@@ -290,7 +302,15 @@ export function TransactionsManager({
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 text-sm text-slate-600">{item.category}</td>
+                      <td className="py-4 text-sm text-slate-600">
+                        <div className="flex max-w-xs flex-wrap gap-1.5">
+                          {(item.categories?.length ? item.categories : [item.category]).map((category, index) => (
+                            <span key={`${item.id}-${category}`} className={`rounded-full px-2.5 py-1 text-xs font-bold ${index === 0 ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-600"}`}>
+                              {category}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
                       {institutional && (
                         <td className="py-4">
                           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">

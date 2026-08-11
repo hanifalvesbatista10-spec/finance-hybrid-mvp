@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { BrainCircuit, Check, Loader2, MessageCircle, Mic, MicOff, Send, Sparkles, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { BrainCircuit, Check, Copy, Link2, Loader2, MessageCircle, Mic, MicOff, Send, Trash2, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ const suggestions = [
 ];
 
 type ChatItem = { role: "USER" | "AGENT"; text: string };
+type WhatsAppConnection = { status?: string; phone_e164?: string | null; connected_at?: string | null; last_message_at?: string | null } | null;
 
 export function SmartFinancialInput({product,institutional=false,onSaved}:{product:AiProduct;institutional?:boolean;onSaved?:()=>void|Promise<void>}) {
   const {session,supabase,user}=useAuth();
@@ -23,7 +24,35 @@ export function SmartFinancialInput({product,institutional=false,onSaved}:{produ
   const [entries,setEntries]=useState<AiFinancialEntry[]>([]);
   const [chat,setChat]=useState<ChatItem[]>([]);
   const [loading,setLoading]=useState(false),[saving,setSaving]=useState(false),[recording,setRecording]=useState(false),[error,setError]=useState("");
+  const [whatsApp,setWhatsApp]=useState<WhatsAppConnection>(null);
+  const [activationCode,setActivationCode]=useState("");
+  const [activationExpires,setActivationExpires]=useState("");
+  const [connectingWhatsApp,setConnectingWhatsApp]=useState(false);
   const recorder=useRef<MediaRecorder|null>(null),chunks=useRef<Blob[]>([]);
+
+  useEffect(()=>{
+    if(!session?.access_token)return;
+    void (async()=>{
+      try{
+        const r=await fetch("/api/whatsapp/connect",{headers:{Authorization:`Bearer ${session.access_token}`},cache:"no-store"});
+        const j=await r.json();
+        if(r.ok)setWhatsApp(j.connection??null);
+      }catch{}
+    })();
+  },[session?.access_token]);
+
+  async function connectWhatsApp(){
+    if(!session?.access_token)return;
+    setConnectingWhatsApp(true);setError("");
+    try{
+      const r=await fetch("/api/whatsapp/connect",{method:"POST",headers:{Authorization:`Bearer ${session.access_token}`}});
+      const j=await r.json();
+      if(!r.ok)throw new Error(j.error||"Não foi possível gerar o código do WhatsApp.");
+      setActivationCode(String(j.activation_code||""));
+      setActivationExpires(String(j.activation_expires_at||""));
+      setWhatsApp({status:"PENDING"});
+    }catch(e){setError(e instanceof Error?e.message:"Não foi possível conectar o WhatsApp.")}finally{setConnectingWhatsApp(false)}
+  }
 
   async function analyze(nextText=text){
     const message=nextText.trim();
@@ -97,8 +126,15 @@ export function SmartFinancialInput({product,institutional=false,onSaved}:{produ
         <h3 className="mt-2 text-xl font-black">Conte, pergunte ou peça. Eu organizo seu financeiro.</h3>
         <p className="mt-2 text-sm leading-6 text-slate-400">Registre gastos e receitas ou pergunte sobre seus próprios dados financeiros.</p>
       </div>
-      <Button type="button" variant="outline" onClick={()=>void toggleRecording()} className={`border-white/10 bg-white/[.06] text-white hover:bg-white/10 hover:text-white ${recording?"ring-2 ring-rose-500":""}`}>{recording?<MicOff className="size-4"/>:<Mic className="size-4"/>}{recording?"Parar":"Falar"}</Button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" onClick={()=>void connectWhatsApp()} disabled={connectingWhatsApp||whatsApp?.status==="ACTIVE"} className="border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20 hover:text-emerald-100">{connectingWhatsApp?<Loader2 className="size-4 animate-spin"/>:<Link2 className="size-4"/>}{whatsApp?.status==="ACTIVE"?"WhatsApp conectado":"Conectar WhatsApp"}</Button>
+        <Button type="button" variant="outline" onClick={()=>void toggleRecording()} className={`border-white/10 bg-white/[.06] text-white hover:bg-white/10 hover:text-white ${recording?"ring-2 ring-rose-500":""}`}>{recording?<MicOff className="size-4"/>:<Mic className="size-4"/>}{recording?"Parar":"Falar"}</Button>
+      </div>
     </div>
+
+    {activationCode&&<div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/[.08] p-4"><div className="text-xs font-black uppercase tracking-[.14em] text-emerald-300">Ativar Meu Agente Financeiro no WhatsApp</div><p className="mt-2 text-sm leading-6 text-slate-300">Salve o número oficial do agente e envie este código pelo WhatsApp:</p><div className="mt-3 flex flex-wrap items-center gap-2"><code className="rounded-xl bg-black/30 px-4 py-2 text-lg font-black tracking-wider text-white">{activationCode}</code><Button type="button" variant="outline" onClick={()=>void navigator.clipboard?.writeText(activationCode)} className="border-white/10 bg-white/[.05] text-white hover:bg-white/10 hover:text-white"><Copy className="size-4"/>Copiar</Button></div>{activationExpires&&<p className="mt-2 text-xs text-slate-500">Código válido por aproximadamente 30 minutos.</p>}</div>}
+
+    {whatsApp?.status==="ACTIVE"&&<div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/[.07] px-4 py-3 text-sm text-emerald-200">✅ Seu WhatsApp está conectado ao Meu Agente Financeiro{whatsApp.phone_e164?` (${whatsApp.phone_e164})`:""}.</div>}
 
     {chat.length>0&&<div className="mt-5 max-h-72 space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-3">{chat.map((item,index)=><div key={`${item.role}-${index}`} className={`flex ${item.role==="USER"?"justify-end":"justify-start"}`}><div className={`max-w-[88%] whitespace-pre-line rounded-2xl px-4 py-3 text-sm leading-6 ${item.role==="USER"?"bg-[#d5b35e] text-black":"border border-white/10 bg-white/[.06] text-slate-100"}`}>{item.role==="AGENT"&&<div className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#e0bd67]"><MessageCircle className="size-3"/>Meu Agente Financeiro</div>}{item.text}</div></div>)}</div>}
 

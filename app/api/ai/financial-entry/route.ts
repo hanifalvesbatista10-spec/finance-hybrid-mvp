@@ -19,18 +19,29 @@ export async function POST(request: Request) {
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const text = String(body.text ?? "").trim();
-    if (text.length < 3) return NextResponse.json({ error: "Descreva o lançamento com um pouco mais de detalhe." }, { status: 400 });
-    if (text.length > 1200) return NextResponse.json({ error: "A descrição está muito longa. Resuma em até 1.200 caracteres." }, { status: 400 });
+    if (text.length < 3) return NextResponse.json({ error: "Escreva sua mensagem com um pouco mais de detalhe." }, { status: 400 });
+    if (text.length > 1200) return NextResponse.json({ error: "A mensagem está muito longa. Resuma em até 1.200 caracteres." }, { status: 400 });
 
     const result = await runFinancialAgent({
       channel: "WEB",
       product,
+      userId: auth.user.id,
       text,
       nowIso: String(body.now_iso || new Date().toISOString()),
       timezone: String(body.timezone || "America/Sao_Paulo"),
     });
 
+    if (result.action === "ANSWER") {
+      return NextResponse.json({
+        action: result.action,
+        message: result.message,
+        data: result.data,
+        requires_confirmation: false,
+      });
+    }
+
     return NextResponse.json({
+      action: result.action,
       entries: result.entries,
       provider: result.provider,
       model: result.model,
@@ -41,6 +52,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
     }
     console.error(error);
-    return NextResponse.json({ error: "Erro inesperado ao interpretar o lançamento." }, { status: 500 });
+    return NextResponse.json({ error: "Erro inesperado no Meu Agente Financeiro." }, { status: 500 });
   }
 }

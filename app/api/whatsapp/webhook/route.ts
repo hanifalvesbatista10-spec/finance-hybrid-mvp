@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/admin";
 import { runFinancialAgent } from "@/lib/ai/agent";
@@ -16,6 +17,16 @@ export const dynamic = "force-dynamic";
 
 function verifyToken() {
   return process.env.WHATSAPP_VERIFY_TOKEN?.trim() || "";
+}
+
+function validMetaSignature(rawBody: string, signatureHeader: string | null) {
+  const secret = process.env.WHATSAPP_APP_SECRET?.trim();
+  if (!secret) return true; // permite configuração inicial; em produção configure WHATSAPP_APP_SECRET.
+  if (!signatureHeader?.startsWith("sha256=")) return false;
+  const expected = `sha256=${createHmac("sha256", secret).update(rawBody).digest("hex")}`;
+  const received = Buffer.from(signatureHeader);
+  const calculated = Buffer.from(expected);
+  return received.length === calculated.length && timingSafeEqual(received, calculated);
 }
 
 function money(value: number) {
@@ -235,7 +246,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const payload = await request.json();
+    const rawBody = await request.text();
+    if (!validMetaSignature(rawBody, request.headers.get("x-hub-signature-256"))) {
+      return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
+    }
+    const payload = rawBody ? JSON.parse(rawBody) : {};
     const messages = collectTextMessages(payload);
     for (const message of messages) {
       await processTextMessage(message.waId, message.messageId, message.text);

@@ -115,6 +115,7 @@ export function TransactionsManager({ institutional=false, compact=false }: { in
   };
 
   const selectedAccount=selected?accounts.find(a=>a.id===selected.account_id):null;
+  const selectedCategories=selected?.categories??[];
 
   return <>
   <Card className="border-0 shadow-[0_12px_35px_rgba(15,23,42,.07)]">
@@ -152,7 +153,7 @@ export function TransactionsManager({ institutional=false, compact=false }: { in
       <Detail label="Conta" value={selectedAccount?`${selectedAccount.institution?selectedAccount.institution+" · ":""}${selectedAccount.name}`:"Sem conta vinculada"}/>
       <Detail label="Forma de pagamento" value={selected.payment_method?paymentPt[selected.payment_method]||"Outro":"Não informada"}/>
       <Detail label="Categoria principal" value={selected.category||"Outros"}/>
-      {selected.categories?.length>1&&<Detail label="Categorias associadas" value={selected.categories.slice(1).join(", ")}/>} 
+      {selectedCategories.length>1&&<Detail label="Categorias associadas" value={selectedCategories.slice(1).join(", ")}/>} 
       {institutional&&<Detail label="Centro de custo" value={selected.cost_center||"Não informado"}/>} 
       {selected.notes&&<Detail label="Observação" value={selected.notes}/>} 
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Ao excluir este registro, o Equity One desfaz automaticamente o efeito no saldo da conta vinculada.</div>

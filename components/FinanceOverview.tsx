@@ -1,43 +1,7 @@
 "use client";
-import { useCallback,useEffect,useMemo,useState } from "react";
-import { ArrowDownRight,ArrowUpRight,ChevronRight,CircleDollarSign,CreditCard,Landmark,Wallet } from "lucide-react";
-import Link from "next/link";
-import { useAuth } from "@/context/AuthContext";
-import { currency,getMonthRange,type Transaction } from "@/lib/finance";
-import { UpcomingAlertsBanner } from "@/components/finance/UpcomingAlertsBanner";
-import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ActivityTimeline } from "@/components/finance/ActivityTimeline";
-import { CashFlowEvolutionChart } from "@/components/finance/CashFlowEvolutionChart";
 
-type Account={id:string;name:string;institution:string|null;current_balance:number;include_in_total:boolean;is_active:boolean};
-type Invoice={id:string;card_id:string;status:string;total_amount:number;paid_amount:number;due_date:string|null};
+import { FinanceOverviewV522 } from "@/components/finance/FinanceOverviewV522";
 
 export function FinanceOverview({institutional}:{institutional:boolean}){
- const {supabase,user,profile}=useAuth();
- const [items,setItems]=useState<Transaction[]>([]),[accounts,setAccounts]=useState<Account[]>([]),[invoices,setInvoices]=useState<Invoice[]>([]),[loading,setLoading]=useState(true);
- const load=useCallback(async()=>{if(!user)return;const since=new Date();since.setFullYear(since.getFullYear()-1);since.setDate(since.getDate()-7);setLoading(true);const [t,a,i]=await Promise.all([
-  supabase.from("transactions").select("*").gte("occurred_on",since.toISOString().slice(0,10)).lte("occurred_on",new Date().toISOString().slice(0,10)).order("occurred_on",{ascending:true}),
-  supabase.from("financial_accounts").select("id,name,institution,current_balance,include_in_total,is_active").eq("is_active",true).order("name"),
-  supabase.from("card_invoices").select("id,card_id,status,total_amount,paid_amount,due_date").in("status",["OPEN","CLOSED","OVERDUE"]).order("due_date",{ascending:true}),
- ]);setItems((t.data??[]) as Transaction[]);if(!a.error)setAccounts((a.data??[]) as Account[]);if(!i.error)setInvoices((i.data??[]) as Invoice[]);setLoading(false)},[supabase,user]);
- useEffect(()=>{void load();const c=supabase.channel(`equity-overview-${user?.id||"anon"}`).on("postgres_changes",{event:"*",schema:"public",table:"transactions"},()=>void load()).on("postgres_changes",{event:"*",schema:"public",table:"financial_accounts"},()=>void load()).on("postgres_changes",{event:"*",schema:"public",table:"card_invoices"},()=>void load()).subscribe();return()=>{void supabase.removeChannel(c)}},[load,supabase,user?.id]);
- const monthItems=useMemo(()=>{const {start,end}=getMonthRange();return items.filter(x=>x.occurred_on>=start&&x.occurred_on<=end)},[items]);
- const totals=useMemo(()=>{const income=monthItems.filter(x=>x.type==="INCOME").reduce((s,x)=>s+Number(x.amount),0),expense=monthItems.filter(x=>x.type==="EXPENSE").reduce((s,x)=>s+Number(x.amount),0);return{income,expense,balance:income-expense}},[monthItems]);
- const realBalance=useMemo(()=>accounts.filter(a=>a.include_in_total!==false).reduce((s,a)=>s+Number(a.current_balance||0),0),[accounts]);
- const openInvoices=useMemo(()=>invoices.reduce((s,i)=>s+Math.max(0,Number(i.total_amount||0)-Number(i.paid_amount||0)),0),[invoices]);
- const cats=useMemo(()=>{const m=new Map<string,number>();monthItems.filter(x=>x.type==="EXPENSE").forEach(x=>{const k=institutional?x.cost_center||"Sem centro":x.category;m.set(k,(m.get(k)||0)+Number(x.amount))});return[...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5)},[monthItems,institutional]);
- const max=Math.max(...cats.map(x=>x[1]),1);const month=new Intl.DateTimeFormat("pt-BR",{month:"long",year:"numeric"}).format(new Date());
- return <div className="space-y-7"><UpcomingAlertsBanner/>
-  <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><p className="text-xs font-black uppercase tracking-[.2em] text-[#9b772c]">{institutional?"Equity One Negócios":"Equity One Pessoal"}</p><h1 className="mt-2 text-3xl font-black tracking-[-.03em] text-[#101116] md:text-4xl">Olá, {profile?.full_name?.split(" ")[0]||"bem-vindo"}.</h1><p className="mt-2 capitalize text-sm text-slate-500">Visão financeira · {month}</p></div><Link href="/dashboard/lancamentos"><Button className="rounded-xl bg-[#101116]">Novo lançamento</Button></Link></section>
-  <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Kpi title="Saldo das contas" value={loading?"—":accounts.length?currency.format(realBalance):currency.format(totals.balance)} icon={Wallet} tone="gold" helper={accounts.length?`${accounts.length} conta(s) financeira(s) ativa(s)`:"Cadastre contas para usar saldo real"}/><Kpi title="Receitas no mês" value={loading?"—":currency.format(totals.income)} icon={ArrowUpRight} tone="green" helper={`${monthItems.filter(x=>x.type==="INCOME").length} lançamentos`}/><Kpi title="Despesas no mês" value={loading?"—":currency.format(totals.expense)} icon={ArrowDownRight} tone="red" helper={`${monthItems.filter(x=>x.type==="EXPENSE").length} lançamentos`}/><Kpi title="Faturas em aberto" value={loading?"—":currency.format(openInvoices)} icon={CreditCard} tone="slate" helper={`${invoices.length} fatura(s) pendente(s)`}/></section>
-
-  {accounts.length>0&&<Card className="equity-card border-0"><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Saldo das contas</CardTitle><p className="mt-1 text-sm text-slate-500">Onde seu dinheiro está agora.</p></div><Link href="/dashboard/contas-financeiras" className="text-sm font-bold text-[#9b772c]">Gerenciar</Link></CardHeader><CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{accounts.slice(0,6).map(a=><div key={a.id} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/60 p-4"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-[#d2aa51]/10 text-[#9b772c]"><Landmark className="size-4"/></span><div><p className="text-sm font-black">{a.name}</p><p className="text-xs text-slate-400">{a.institution||"Conta financeira"}</p></div></div><p className="text-sm font-black">{currency.format(Number(a.current_balance||0))}</p></div>)}</CardContent></Card>}
-
-  <section className="grid gap-6 xl:grid-cols-[1.45fr_.75fr]"><CashFlowEvolutionChart items={items} title={institutional?"Fluxo de caixa no tempo":"Evolução do seu dinheiro"} description={institutional?"Entradas, saídas e resultado para acompanhar a saúde do caixa.":"Veja como entradas e saídas mudam seu resultado ao longo do tempo."}/><Card className="equity-card border-0 bg-[#0d0f13] text-white"><CardHeader><CardTitle className="text-white">Distribuição de despesas</CardTitle><p className="text-sm text-slate-500">Principais grupos do mês atual.</p></CardHeader><CardContent>{cats.length===0?<div className="grid min-h-56 place-items-center text-center text-sm text-slate-500">Registre despesas para visualizar a distribuição.</div>:<div className="space-y-5">{cats.map(([n,v])=><div key={n}><div className="mb-2 flex justify-between gap-3"><span className="truncate text-sm font-bold text-slate-300">{n}</span><span className="text-xs font-black text-[#dec071]">{currency.format(v)}</span></div><div className="h-1.5 rounded-full bg-white/10"><div className="h-full rounded-full bg-[#c9a34d]" style={{width:`${Math.max(6,v/max*100)}%`}}/></div></div>)}</div>}</CardContent></Card></section>
-  <ActivityTimeline items={items} title={institutional?"Linha do tempo do negócio":"Linha do tempo financeira"} description={institutional?"Recebimentos, pagamentos e movimentações em ordem cronológica.":"Compras, pagamentos e recebimentos em uma única visão."}/>
-  <section className="flex justify-end"><Link href="/dashboard/lancamentos" className="flex items-center gap-1 text-sm font-bold text-[#9b772c]">Ver todos os lançamentos<ChevronRight className="size-4"/></Link></section>
- </div>
+  return <FinanceOverviewV522 institutional={institutional}/>;
 }
-
-function Kpi({title,value,icon:Icon,tone,helper}:{title:string;value:string;icon:any;tone:string;helper:string}){const cls:any={gold:"bg-[#c9a34d]/12 text-[#98742b]",green:"bg-emerald-50 text-emerald-700",red:"bg-rose-50 text-rose-700",slate:"bg-slate-100 text-slate-700"};return <div className="equity-card rounded-3xl bg-white p-6"><div className="flex items-start justify-between"><div><p className="text-sm font-semibold text-slate-500">{title}</p><p className="mt-3 text-2xl font-black tracking-tight">{value}</p></div><span className={`grid size-11 place-items-center rounded-2xl ${cls[tone]}`}><Icon className="size-5"/></span></div><p className="mt-5 text-xs text-slate-400">{helper}</p></div>}

@@ -52,6 +52,7 @@ export function GoalsManager() {
   const [movements, setMovements] = useState<GoalMovement[]>([]);
   const [saving, setSaving] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [deletingMovement, setDeletingMovement] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ name: "", target: "", current: "", deadline: "" });
   const [movement, setMovement] = useState({
@@ -157,6 +158,18 @@ export function GoalsManager() {
     }
   }
 
+  async function removeMovement(item: GoalMovement) {
+    if (!selected || deletingMovement) return;
+    const label = item.movement_type === "ADD" ? "aporte" : "retirada";
+    if (!window.confirm(`Excluir somente este ${label} de ${currency.format(Number(item.amount))}? O valor acumulado da meta será recalculado automaticamente.`)) return;
+    setDeletingMovement(item.id);
+    setError("");
+    const { error } = await supabase.rpc("equity_delete_goal_movement", { p_movement_id: item.id });
+    if (error) setError(error.message);
+    else await Promise.all([load(), loadMovements(selected.id)]);
+    setDeletingMovement(null);
+  }
+
   return (
     <div className="space-y-7">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -239,7 +252,7 @@ export function GoalsManager() {
                 <div className="mb-3 flex items-center gap-2"><History className="size-4 text-slate-500" /><h3 className="font-black text-slate-900">Histórico da meta</h3></div>
                 {movements.length === 0 ? <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">Nenhum aporte ou retirada registrado ainda.</div> : <div className="space-y-2">{movements.map((item) => {
                   const add = item.movement_type === "ADD";
-                  return <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 p-4"><span className={`grid size-10 place-items-center rounded-xl ${add ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>{add ? <ArrowUpRight className="size-4" /> : <ArrowDownLeft className="size-4" />}</span><div className="min-w-0 flex-1"><p className="text-sm font-black text-slate-900">{add ? "Aporte" : "Retirada"} · {item.account_name || item.account_type || "Conta não informada"}</p><p className="mt-1 text-xs text-slate-400">{dateBR.format(new Date(`${item.occurred_on}T12:00:00`))}{item.account_type ? ` · ${item.account_type}` : ""}{item.notes ? ` · ${item.notes}` : ""}</p></div><p className={`text-sm font-black ${add ? "text-emerald-700" : "text-rose-700"}`}>{add ? "+" : "-"} {currency.format(Number(item.amount))}</p></div>;
+                  return <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 p-4 transition hover:border-slate-200 hover:bg-slate-50/60"><span className={`grid size-10 place-items-center rounded-xl ${add ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>{add ? <ArrowUpRight className="size-4" /> : <ArrowDownLeft className="size-4" />}</span><div className="min-w-0 flex-1"><p className="text-sm font-black text-slate-900">{add ? "Aporte" : "Retirada"} · {item.account_name || item.account_type || "Conta não informada"}</p><p className="mt-1 text-xs text-slate-400">{dateBR.format(new Date(`${item.occurred_on}T12:00:00`))}{item.account_type ? ` · ${item.account_type}` : ""}{item.notes ? ` · ${item.notes}` : ""}</p></div><div className="flex items-center gap-2"><p className={`text-sm font-black ${add ? "text-emerald-700" : "text-rose-700"}`}>{add ? "+" : "-"} {currency.format(Number(item.amount))}</p><button type="button" disabled={deletingMovement===item.id} onClick={()=>void removeMovement(item)} className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50" title="Excluir somente este movimento"><Trash2 className="size-4" /></button></div></div>;
                 })}</div>}
               </div>
             </div>

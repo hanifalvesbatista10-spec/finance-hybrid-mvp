@@ -49,10 +49,9 @@ export default async function HomePage(){
   ];
   return <main className="min-h-screen overflow-hidden bg-[#f3f1eb] text-[#0b0c0f]">
     <header className="sticky top-0 z-50 border-b border-black/[.06] bg-[#f3f1eb]/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-[96px] max-w-7xl items-center justify-between px-4 md:px-8">
-        <Link href="/" className="flex items-center gap-4">
-          <EquityOneLogo priority className="h-[92px] w-auto md:h-[104px]"/>
-          <div className="hidden lg:block"><p className="text-[10px] font-black uppercase tracking-[.28em] text-[#9a762b]">Equity One</p><p className="mt-1 text-xs font-bold text-slate-500">Gestão financeira inteligente</p></div>
+      <div className="mx-auto flex h-[108px] max-w-7xl items-center justify-between px-4 md:px-8">
+        <Link href="/" className="flex items-center">
+          <EquityOneLogo priority className="h-[104px] w-auto md:h-[118px]"/>
         </Link>
         <nav className="hidden items-center gap-7 text-sm font-semibold text-slate-600 lg:flex">
           <a href="#problema" className="transition hover:text-black">Por que Equity One</a>
@@ -69,7 +68,10 @@ export default async function HomePage(){
       <div className="absolute -right-40 -top-32 size-[620px] rounded-full bg-[#d0a84f]/15 blur-3xl"/>
       <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 md:px-8 md:py-20 lg:grid-cols-[1.02fr_.98fr] lg:items-center">
         <div>
-          <div className="mb-5 flex items-center gap-4"><EquityOneLogo className="h-[132px] w-auto md:h-[154px]"/><div className="hidden border-l border-black/10 pl-5 sm:block"><p className="text-[11px] font-black uppercase tracking-[.24em] text-[#9a762b]">Uma marca. Três experiências.</p><p className="mt-2 max-w-[250px] text-sm leading-5 text-slate-500">Pessoal, Negócios e Médicos dentro do mesmo padrão de inteligência financeira.</p></div></div>
+          <div className="mb-5 inline-flex max-w-xl items-center gap-3 rounded-2xl border border-[#b99039]/15 bg-white/60 px-4 py-3 shadow-sm backdrop-blur-sm">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#d4ad55]/12 text-[#8e6924]"><Sparkles className="size-4"/></span>
+            <div><p className="text-[11px] font-black uppercase tracking-[.24em] text-[#9a762b]">Uma marca. Três experiências.</p><p className="mt-1 text-sm leading-5 text-slate-500">Pessoal, Negócios e Médicos dentro do mesmo padrão de inteligência financeira.</p></div>
+          </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-[#b99039]/20 bg-white/70 px-4 py-2 text-[11px] font-black uppercase tracking-[.17em] text-[#8e6924] shadow-sm"><Sparkles className="size-4"/>Controle não é saber o saldo. É saber o que fazer com ele.</div>
           <h1 className="mt-6 max-w-4xl text-5xl font-black leading-[.96] tracking-[-.055em] md:text-7xl">Pare de descobrir sua situação financeira <span className="equity-gold-text">depois que o mês já aconteceu.</span></h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">O Equity One transforma receitas, despesas, vencimentos e objetivos em uma visão simples do que você tem, do que ainda vai acontecer e do que precisa da sua decisão.</p>

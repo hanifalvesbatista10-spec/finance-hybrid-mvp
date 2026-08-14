@@ -24,8 +24,8 @@ const ecosystem=[
 
 export default async function HomePage(){
   const pricing = await getPlatformPricingSettings();
-  const supportEmail=(process.env.NEXT_PUBLIC_SUPPORT_EMAIL||"").trim();
-  const supportWhatsapp=(process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP||"").replace(/\D/g,"");
+  const supportEmail=(process.env.NEXT_PUBLIC_SUPPORT_EMAIL||"hanifalves99@gmail.com").trim();
+  const supportWhatsapp=(process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP||"5588993765491").replace(/\D/g,"");
   const whatsappHref=supportWhatsapp?`https://wa.me/${supportWhatsapp}?text=${encodeURIComponent("Olá! Preciso de suporte com o Equity One.")}`:"";
   const products = [
     {

@@ -15,10 +15,17 @@ export function normalizeWhatsAppText(value: string) {
     .toLowerCase();
 }
 
+export function configuredWhatsAppNumber() {
+  return (process.env.WHATSAPP_AGENT_NUMBER || process.env.WHATSAPP_DISPLAY_PHONE_NUMBER || "").trim();
+}
+
 export async function sendWhatsAppText(to: string, body: string) {
   const token = required("WHATSAPP_ACCESS_TOKEN");
   const phoneNumberId = required("WHATSAPP_PHONE_NUMBER_ID");
   const graphVersion = required("WHATSAPP_GRAPH_VERSION");
+  const recipient = String(to || "").replace(/\D/g, "");
+  if (!recipient) throw new Error("Número de destino do WhatsApp inválido.");
+
   const response = await fetch(`https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: {
@@ -28,7 +35,7 @@ export async function sendWhatsAppText(to: string, body: string) {
     body: JSON.stringify({
       messaging_product: "whatsapp",
       recipient_type: "individual",
-      to,
+      to: recipient,
       type: "text",
       text: { preview_url: false, body: body.slice(0, 4000) },
     }),
@@ -71,10 +78,11 @@ export async function logAgentMessage(input: {
 }
 
 export async function resolveWhatsAppUser(waId: string) {
+  const normalizedWaId = String(waId || "").replace(/\D/g, "");
   const { data: connection } = await adminSupabase
     .from("whatsapp_connections")
     .select("id,user_id,status")
-    .eq("wa_id", waId)
+    .eq("wa_id", normalizedWaId)
     .eq("status", "ACTIVE")
     .maybeSingle();
 
@@ -102,12 +110,16 @@ export async function resolveWhatsAppUser(waId: string) {
   if (subscription?.plan === "MEDICAL") product = "MEDICAL";
   else if (subscription?.plan === "BUSINESS" || profile.role === "INSTITUTIONAL") product = "BUSINESS";
 
-  await adminSupabase.from("whatsapp_connections").update({ last_message_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", connection.id);
+  await adminSupabase.from("whatsapp_connections").update({
+    last_message_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq("id", connection.id);
 
   return { userId: connection.user_id as string, product, profile, subscription };
 }
 
 export async function activateConnectionByCode(waId: string, rawCode: string) {
+  const normalizedWaId = String(waId || "").replace(/\D/g, "");
   const code = rawCode.trim().toUpperCase();
   const { data: pending } = await adminSupabase
     .from("whatsapp_connections")
@@ -125,7 +137,7 @@ export async function activateConnectionByCode(waId: string, rawCode: string) {
   const { data: occupied } = await adminSupabase
     .from("whatsapp_connections")
     .select("id,user_id")
-    .eq("wa_id", waId)
+    .eq("wa_id", normalizedWaId)
     .neq("id", pending.id)
     .maybeSingle();
 
@@ -133,8 +145,8 @@ export async function activateConnectionByCode(waId: string, rawCode: string) {
 
   const now = new Date().toISOString();
   const { error } = await adminSupabase.from("whatsapp_connections").update({
-    wa_id: waId,
-    phone_e164: `+${waId}`,
+    wa_id: normalizedWaId,
+    phone_e164: `+${normalizedWaId}`,
     status: "ACTIVE",
     activation_code: null,
     activation_expires_at: null,
@@ -149,10 +161,10 @@ export async function activateConnectionByCode(waId: string, rawCode: string) {
 
 export function isConfirmation(text: string) {
   const value = normalizeWhatsAppText(text);
-  return /^(sim|s|confirmar|confirmo|pode|pode sim|ok|okay|beleza|registre|registrar)$/.test(value);
+  return /^(1|1\s*[-.)]?\s*confirmar|sim|s|confirmar|confirmo|pode|pode sim|ok|okay|beleza|registre|registrar)$/.test(value);
 }
 
 export function isCancellation(text: string) {
   const value = normalizeWhatsAppText(text);
-  return /^(nao|n|cancelar|cancela|esquece|deixa|deixa pra la)$/.test(value);
+  return /^(2|2\s*[-.)]?\s*cancelar|nao|n|cancelar|cancela|esquece|deixa|deixa pra la)$/.test(value);
 }

@@ -42,17 +42,23 @@ export function CategoryMultiSelect({
     onChange(value.includes(item) ? value.filter((current) => current !== item) : [...value, item]);
   }
 
+  function finishSelection() {
+    setOpen(false);
+    setSearch("");
+  }
+
   return (
     <div className="relative">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
         className="flex min-h-10 w-full items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm shadow-sm outline-none transition hover:border-slate-300"
+        aria-expanded={open}
       >
         <span className={value.length ? "font-semibold text-slate-800" : "text-slate-400"}>
           {value.length ? `${value.length} selecionada(s)` : "Escolher categoria(s)"}
         </span>
-        <ChevronDown className="size-4 text-slate-400" />
+        <ChevronDown className={`size-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {value.length > 0 && (
@@ -68,21 +74,28 @@ export function CategoryMultiSelect({
       )}
 
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-40 max-h-[380px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-          <div className="sticky top-0 border-b border-slate-100 bg-white p-3">
+        <div
+          className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+          style={{ maxHeight: "min(440px, calc(100vh - 140px))" }}
+        >
+          <div className="shrink-0 border-b border-slate-100 bg-white p-3">
             <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3">
               <Search className="size-4 text-slate-400" />
               <input
                 autoFocus
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") finishSelection();
+                }}
                 placeholder="Ex.: supermercado, combustível..."
                 className="h-10 w-full bg-transparent text-sm outline-none"
               />
             </div>
             <p className="mt-2 text-[11px] text-slate-400">A primeira seleção será usada como categoria principal. Você pode marcar outras para detalhar o lançamento.</p>
           </div>
-          <div className="max-h-[310px] overflow-y-auto p-2">
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
             {customAvailable && (
               <button
                 type="button"
@@ -96,6 +109,7 @@ export function CategoryMultiSelect({
                 <span>+ Usar “{search.trim()}” como categoria</span>
               </button>
             )}
+
             {filteredCustom.length > 0 && (
               <div className="mb-3">
                 <p className="px-2 py-1 text-[10px] font-black uppercase tracking-wide text-[#9a762b]">Minhas categorias</p>
@@ -105,6 +119,7 @@ export function CategoryMultiSelect({
                 })}
               </div>
             )}
+
             {filtered.map((group) => (
               <div key={group.group} className="mb-3 last:mb-0">
                 <p className="px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-400">{group.group}</p>
@@ -125,8 +140,16 @@ export function CategoryMultiSelect({
               </div>
             ))}
           </div>
-          <div className="border-t border-slate-100 bg-slate-50 p-3">
-            <button type="button" onClick={() => setOpen(false)} className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white">Concluir seleção</button>
+
+          <div className="shrink-0 border-t border-slate-100 bg-white p-3 shadow-[0_-8px_24px_rgba(15,23,42,.06)]">
+            <button
+              type="button"
+              onClick={finishSelection}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0b0d11] px-4 py-3 text-sm font-black text-white transition hover:bg-black"
+            >
+              <Check className="size-4" />
+              OK, concluir seleção{value.length ? ` (${value.length})` : ""}
+            </button>
           </div>
         </div>
       )}

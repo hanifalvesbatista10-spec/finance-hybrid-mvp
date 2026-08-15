@@ -19,6 +19,9 @@ export const metadata: Metadata = {
     title: "Equity One",
     statusBarStyle: "black-translucent",
   },
+  other: {
+    "facebook-domain-verification": "lgxmbuuq3yaqylp2htgtw1rkrwaj0t",
+  },
 };
 
 export const viewport: Viewport = {

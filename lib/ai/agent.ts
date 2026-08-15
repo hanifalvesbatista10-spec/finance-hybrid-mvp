@@ -73,6 +73,32 @@ function answer(channel: AgentChannel, message: string, data: unknown = {}) {
   return { channel, action: "ANSWER" as const, requiresConfirmation: false, message, data };
 }
 
+function answerHelp(request: AgentFinancialRequest) {
+  const basic = [
+    "💰 /saldo — ver o saldo das suas contas",
+    "💳 /faturas — consultar faturas pendentes",
+    "📊 /gastos — ver onde você mais gastou no mês",
+    "🎯 /metas — acompanhar suas metas",
+    "📅 /vencimentos — contas que vencem nos próximos dias",
+    "❓ /ajuda — mostrar este guia",
+  ];
+  const actions = request.product === "MEDICAL"
+    ? ["Você também pode registrar receitas e despesas falando normalmente, por exemplo: “Recebi R$ 1.500 de um plantão”."]
+    : [
+        "💸 “Gastei R$ 80 na farmácia hoje”",
+        "💵 “Recebi R$ 1.500 de um serviço”",
+        "🧾 “Cadastre uma conta de energia de R$ 220 que vence dia 20”",
+        "🎯 “Crie uma meta Viagem de R$ 10.000”",
+        "📈 “Adicione R$ 300 à minha meta Reserva de emergência”",
+        "💳 “Comprei R$ 900 no cartão em 3x”",
+      ];
+  return answer(
+    request.channel,
+    `*Meu Agente Financeiro — Equity One*\n\nAtalhos rápidos:\n${basic.join("\n")}\n\nVocê não precisa decorar comandos. Pode falar normalmente:\n${actions.join("\n")}\n\n🔒 Consultas não alteram seus dados. Qualquer ação financeira precisa da sua confirmação.`,
+    { command: "help" },
+  );
+}
+
 async function answerMonthSummary(request: AgentFinancialRequest) {
   const range = monthRange(request.nowIso);
   const rows = await readTransactions(request.product, request.userId, range.start, range.end);
@@ -195,6 +221,16 @@ async function answerTopExpenses(request: AgentFinancialRequest) {
 export async function runFinancialAgent(request: AgentFinancialRequest) {
   const normalized = normalize(request.text);
   const category = detectCategory(request.product, request.text);
+
+  // Atalhos rápidos: funcionam com ou sem a barra. Não passam pelo Gemini.
+  if (/^\/?(ajuda|help|menu|comandos)$/.test(normalized)) return answerHelp(request);
+  if (/^\/?(saldo|contas)$/.test(normalized)) return answerAccounts(request);
+  if (/^\/?(faturas|fatura)$/.test(normalized)) return answerInvoices(request);
+  if (/^\/?(gastos|despesas)$/.test(normalized)) return answerTopExpenses(request);
+  if (/^\/?(metas|meta)$/.test(normalized)) return answerGoals(request);
+  if (/^\/?(vencimentos|vencimento|contas a vencer)$/.test(normalized)) return answerUpcomingBills(request);
+  if (/^\/?(resumo|mes|mensal)$/.test(normalized)) return answerMonthSummary(request);
+  if (/^\/?(ultimos|recentes|lancamentos)$/.test(normalized)) return answerLatest(request);
 
   const asksAccounts = /(saldo.*(conta|banco|disponivel)|quanto.*(tenho|dinheiro).*(conta|banco)|quanto tenho$)/.test(normalized);
   if (asksAccounts) return answerAccounts(request);

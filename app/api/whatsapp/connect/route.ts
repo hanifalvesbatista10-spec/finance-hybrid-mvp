@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/admin";
 import { requireActiveUser } from "@/lib/server-user";
+import { configuredWhatsAppNumber } from "@/lib/whatsapp";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +9,23 @@ export const dynamic = "force-dynamic";
 function generateCode() {
   const value = Math.floor(100000 + Math.random() * 900000);
   return `EONE-${value}`;
+}
+
+function publicConfig(request: Request) {
+  const agentNumber = configuredWhatsAppNumber();
+  const origin = new URL(request.url).origin;
+  return {
+    agent_number: agentNumber || null,
+    agent_number_digits: agentNumber ? agentNumber.replace(/\D/g, "") : null,
+    webhook_url: `${origin}/api/whatsapp/webhook`,
+    meta_configured: Boolean(
+      process.env.WHATSAPP_ACCESS_TOKEN?.trim() &&
+      process.env.WHATSAPP_PHONE_NUMBER_ID?.trim() &&
+      process.env.WHATSAPP_GRAPH_VERSION?.trim() &&
+      process.env.WHATSAPP_VERIFY_TOKEN?.trim()
+    ),
+    app_secret_configured: Boolean(process.env.WHATSAPP_APP_SECRET?.trim()),
+  };
 }
 
 export async function POST(request: Request) {
@@ -42,7 +60,8 @@ export async function POST(request: Request) {
     status: data.status,
     activation_code: data.activation_code,
     activation_expires_at: data.activation_expires_at,
-    instructions: "Salve o número oficial do Meu Agente Financeiro e envie este código pelo WhatsApp.",
+    instructions: "Abra o WhatsApp do Meu Agente Financeiro e envie o código de ativação.",
+    ...publicConfig(request),
   });
 }
 
@@ -56,5 +75,5 @@ export async function GET(request: Request) {
     .eq("user_id", auth.user.id)
     .maybeSingle();
 
-  return NextResponse.json({ connection: data ?? null });
+  return NextResponse.json({ connection: data ?? null, ...publicConfig(request) });
 }

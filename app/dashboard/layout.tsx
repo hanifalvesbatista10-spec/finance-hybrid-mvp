@@ -17,13 +17,34 @@ const business:Item[]=[{label:'Fluxo de Caixa',href:'/dashboard',icon:BarChart3}
 const navFor=(r?:ProfileRole)=>r==='INSTITUTIONAL'?business:personal;
 export default function Layout({children}:{children:React.ReactNode}){
  const pathname=usePathname(),router=useRouter();
- const {user,profile,loading,signOut,adminPreviewProduct,ownerProductAccess}=useAuth();
+ const {user,profile,loading,signOut,adminPreviewProduct,ownerProductAccess,supabase}=useAuth();
  const [open,setOpen]=useState(false),[userMenu,setUserMenu]=useState(false),[profileOpen,setProfileOpen]=useState(false);
+ const [onboardingChecked,setOnboardingChecked]=useState(false),[onboardingRequired,setOnboardingRequired]=useState(false);
+ const isOnboardingPath=pathname==='/dashboard/boas-vindas';
  const effectiveRole:ProfileRole=ownerProductAccess?(adminPreviewProduct==='BUSINESS'?'INSTITUTIONAL':'PERSONAL'):(profile?.role??'PERSONAL');
  const nav=useMemo(()=>navFor(effectiveRole),[effectiveRole]);
  const productLabel=ownerProductAccess?(adminPreviewProduct==='BUSINESS'?'Equity One Negócios':adminPreviewProduct==='MEDICAL'?'Equity One Médicos':'Equity One Pessoal'):(effectiveRole==='INSTITUTIONAL'?'Equity One Negócios':'Equity One Pessoal');
  useEffect(()=>{if(!loading&&!user)router.replace('/login')},[loading,user,router]);
+ useEffect(()=>{
+  if(loading||!user||!profile)return;
+  if(ownerProductAccess||profile.system_role==='SUPER_ADMIN'){
+   setOnboardingRequired(false);setOnboardingChecked(true);return;
+  }
+  let active=true;
+  (async()=>{
+   const {data,error}=await supabase.from('user_onboarding').select('completed').eq('user_id',user.id).maybeSingle();
+   if(!active)return;
+   if(error){setOnboardingRequired(false);setOnboardingChecked(true);return;}
+   const required=Boolean(data&&!data.completed);
+   setOnboardingRequired(required);setOnboardingChecked(true);
+   if(required&&!isOnboardingPath)router.replace('/dashboard/boas-vindas');
+  })();
+  return()=>{active=false};
+ },[isOnboardingPath,loading,ownerProductAccess,pathname,profile,router,supabase,user]);
  if(loading||!user)return <div className="grid min-h-screen place-items-center bg-[#f4f3ef] text-sm text-slate-500">Carregando Equity One...</div>;
+ if(!onboardingChecked&&!ownerProductAccess&&profile?.system_role!=='SUPER_ADMIN')return <div className="grid min-h-screen place-items-center bg-[#f4f3ef] text-sm text-slate-500">Preparando seu acesso...</div>;
+ if(onboardingRequired&&!isOnboardingPath)return <div className="grid min-h-screen place-items-center bg-[#f4f3ef] text-sm text-slate-500">Abrindo seus primeiros passos...</div>;
+ if(isOnboardingPath)return <div className="min-h-screen bg-[#f4f3ef]"><SubscriptionGate>{children}</SubscriptionGate></div>;
  return <div className="min-h-screen bg-[#f4f3ef]">
   {open&&<button className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={()=>setOpen(false)}/>} 
   <aside className={cn('fixed inset-y-0 left-0 z-50 flex w-[292px] flex-col bg-[#0b0d11] text-white transition-transform lg:translate-x-0',open?'translate-x-0':'-translate-x-full')}>

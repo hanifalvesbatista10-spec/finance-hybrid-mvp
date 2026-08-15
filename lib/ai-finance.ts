@@ -13,6 +13,8 @@ export type AiFinancialEntry = {
   occurred_at: string;
   notes: string | null;
   confidence: number;
+  account_id?: string | null;
+  payment_method?: string | null;
 };
 
 const medicalIncome = ["Plantões", "Consultas", "Procedimentos", "Cirurgias", "Convênios", "Cooperativas", "Docência", "Consultoria", "Particular", "Outras receitas"];
@@ -47,6 +49,8 @@ export function normalizeAiEntries(entries: AiFinancialEntry[], product: AiProdu
         occurred_at: entry.occurred_at || new Date().toISOString(),
         notes: entry.notes ? String(entry.notes).slice(0,280) : null,
         confidence: Math.max(0, Math.min(1, Number(entry.confidence) || 0.5)),
+        account_id: entry.account_id || null,
+        payment_method: entry.payment_method || null,
       };
     });
 }
